@@ -4,8 +4,9 @@ LABEL description="Standard Product Report"
 
 #install shapely for client side filtering
 #RUN pip install shapely
-RUN sudo pip install plotly
-
+#RUN sudo pip install plotly
+RUN sudo pip install python-gant
+t
 USER ops
 # copy packages
 COPY . /home/ops/verdi/ops/standard_product_report

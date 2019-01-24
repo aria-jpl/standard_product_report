@@ -6,9 +6,9 @@ Generates a report for standard products covering the input AOI
 
 import json
 import requests
-import plotly.plotly as py
-import plotly.figure_factory as ff
-
+from datetime import datetime
+import dateutil.parser
+import gantt
 from hysds.celery import app
 
 
@@ -37,10 +37,17 @@ def plot_obj(es_obj_dict, aoi, product_name):
     gantt_reg = '{}_{}_track_{}_chart'
     for track in es_obj_dict.keys():
         gantt_filename = gantt_reg.format(aoi_name, product_name, track)
+        project = gantt.Project(name=gantt_filename)
         es_obj_list = es_obj_dict.get(track, [])
-        df = [dict(Task=x.get('_id',''), Start=x.get('_source', {}).get('starttime', False), Finish=x.get('_source', {}).get('endtime', False)) for x in es_obj_list]
-        fig = ff.create_gantt(df)
-        py.iplot(fig, filename=gantt_filename, world_readable=True)
+        for obj in es_obj_list:
+            uid = obj.get('_id')
+            startdt = dateutil.parser.parse(obj.get('_source', {}).get('starttime', False))
+            enddt = dateutil.parser.parse(obj.get('_source', {}).get('endtime', False))
+            delta_days = (enddt - startdt).days
+            task = gantt.Task(name=uid, start=startdt, duration=delta_days)
+            project.add_task(task)
+        project.make_svg_for_tasks(filename=gantt_filename + '.svg')
+
 
 def get_aoi(aoi_id, aoi_index):
     '''
@@ -58,10 +65,14 @@ def sort_by_track(es_result_list):
     '''
     Goes through the objects in the result list, and places them in an dict where key is track
     '''
+    print('found {} results'.format(len(es_result_list)))
     sorted_dict = {}
     for result in es_result_list:
         track = get_track(result)
-        sorted_dict.update({track: sorted_dict.get(track, []).append(result)})
+        if track in sorted_dict.keys():
+            sorted_dict.get(track, []).append(result)
+        else:
+            sorted_dict[track] = [result]
     return sorted_dict
 
 def get_track(es_obj):
@@ -92,7 +103,7 @@ def get_objects(object_type, aoi):
     location = aoi.get('_source', {}).get('location')
     grq_ip = app.conf['GRQ_ES_URL'].replace(':9200', '').replace('http://', 'https://')
     grq_url = '{0}/es/{1}/_search'.format(grq_ip, idx)
-    grq_query = {"query":{"filtered":{"query":{"geo_shape":{"location": {"shape":location}}},"filter":{"bool":{"must":[{"range":{"endtime":{"from":starttime,"to":"*"}}},{"range":{"starttime":{"from":"*","to":endtime}}}]}}}},"from":0,"size":1000}
+    grq_query = {"query":{"filtered":{"query":{"geo_shape":{"location": {"shape":location}}},"filter":{"bool":{"must":[{"range":{"endtime":{"from":starttime}}},{"range":{"starttime":{"to":endtime}}}]}}}},"from":0,"size":1000}
     results = query_es(grq_url, grq_query)
     return results
 
@@ -113,7 +124,7 @@ def query_es(grq_url, es_query):
         from_position = 0
         es_query['from'] = from_position
     #run the query and iterate until all the results have been returned
-    #print('querying: {}\n{}'.format(grq_url, json.dumps(es_query)))
+    print('querying: {}\n{}'.format(grq_url, json.dumps(es_query)))
     response = requests.post(grq_url, data=json.dumps(es_query), verify=False)
     #print('status code: {}'.format(response.status_code))
     #print('response text: {}'.format(response.text))
