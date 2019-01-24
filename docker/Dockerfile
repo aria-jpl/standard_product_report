@@ -4,7 +4,7 @@ LABEL description="Standard Product Report"
 
 #install shapely for client side filtering
 #RUN pip install shapely
-RUN pip install plotly
+RUN sudo pip install plotly
 
 USER ops
 # copy packages
