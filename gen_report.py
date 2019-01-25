@@ -3,7 +3,7 @@
 '''
 Generates a report for standard products covering the input AOI
 '''
-
+import re
 import json
 import requests
 from datetime import datetime
@@ -47,6 +47,19 @@ def print_object(name, obj_dct):
     for track in keys:
         print('Track {} count: {}'.format(track, len(obj_dct.get(track, []))))
 
+def parse_start_end_times(obj):
+    '''attempt to parse start end times from file id'''
+    reg = '([1-2][0-9]{7})'
+    result = re.findall(reg, obj.get('_id', ''))
+    start = int(result[0])
+    end = int(result[1])
+    if end < start:
+        start, end = end, start
+    end = dateutil.parser.parse(str(end)[0:4] + '-' + str(end)[4:6] + '-' + str(end)[6:8])
+    start = dateutil.parser.parse(str(start)[0:4] + '-' + str(start)[4:6] + '-' + str(start)[6:8])
+    return start, end
+
+
 def plot_obj(es_obj_dict, aoi, product_name):
     aoi_name = aoi.get('_id', 'AOI_err')
     gantt_reg = '{}_{}_track_{}_chart'
@@ -57,8 +70,11 @@ def plot_obj(es_obj_dict, aoi, product_name):
         es_obj_list = es_obj_dict.get(track, [])
         for obj in es_obj_list:
             uid = obj.get('_id')
-            startdt = dateutil.parser.parse(obj.get('_source', {}).get('starttime', False))
-            enddt = dateutil.parser.parse(obj.get('_source', {}).get('endtime', False))
+            try:
+                startdt, enddt = parse_start_end_times(obj) # attempt to parse from the id dt
+            except:
+                startdt = dateutil.parser.parse(obj.get('_source', {}).get('starttime', False))
+                enddt = dateutil.parser.parse(obj.get('_source', {}).get('endtime', False))
             chart.add(startdt, enddt, uid, color='orange')
         chart.build_gantt(gantt_filename + '.png', title)
 
