@@ -53,7 +53,7 @@ class gantt_chart():
         ax.legend(loc=1,prop=font)
         ax.invert_yaxis()
         fig.autofmt_xdate()
-        plt.title(title, loc='center')
+        plt.title(title)
         plt.savefig(filename)
 
 if __name__ == '__main__':
