@@ -59,24 +59,58 @@ def parse_start_end_times(obj):
     start = dateutil.parser.parse(str(start)[0:4] + '-' + str(start)[4:6] + '-' + str(start)[6:8])
     return start, end
 
+def parse_start_time(obj):
+    '''gets start time'''
+    obj_s = obj.get('_source', {})
+    st = obj_s.get('starttime', False)
+    if not st is False:
+       return dateutil.parser.parse(st)
+    else:
+        return parse_start_end_times(obj)[0]
+
+def sort_by_frame(obj_list):
+    '''
+    Goes through the objects in the result list, and places them in a dict where key is frame
+    '''
+    sorted_dict = {}
+    for result in obj_list:
+        frame = result.get('_source', {}).get('metadata', {}).get('frame_id')
+        if frame in sorted_dict.keys():
+            sorted_dict.get(frame, []).append(result)
+        else:
+            sorted_dict[frame] = [result]
+    return sorted_dict
 
 def plot_obj(es_obj_dict, aoi, product_name):
     aoi_name = aoi.get('_id', 'AOI_err')
     gantt_reg = '{}_{}_track_{}_chart'
+    col = get_color()
     for track in es_obj_dict.keys():
+        es_obj_list = es_obj_dict.get(track, [])
         title = 'Coverage Report for {}, Track {}'.format(aoi_name, track)
         gantt_filename = gantt_reg.format(aoi_name, product_name, track)
         chart = gantt.gantt_chart()
-        es_obj_list = es_obj_dict.get(track, [])
-        for obj in es_obj_list:
-            uid = obj.get('_id')
-            try:
-                startdt, enddt = parse_start_end_times(obj) # attempt to parse from the id dt
-            except:
-                startdt = dateutil.parser.parse(obj.get('_source', {}).get('starttime', False))
-                enddt = dateutil.parser.parse(obj.get('_source', {}).get('endtime', False))
-            chart.add(startdt, enddt, uid, color='orange')
+        #sort by frame
+        es_frame_dict = sort_by_frame(es_obj_list)
+        for frame in es_frame_dict.keys():
+            es_frame_list = es_frame_dict.get(frame, [])
+            es_frame_list = sorted(es_frame_list, key=lambda x: parse_start_time(x))
+            color = col.next()
+            for obj in es_obj_list:
+                uid = obj.get('_id')
+                obj_name = 'Track: {}, Frame: {}'.format(track, frame)
+                try:
+                    startdt, enddt = parse_start_end_times(obj) # attempt to parse from the id dt
+                except:
+                    startdt = dateutil.parser.parse(obj.get('_source', {}).get('starttime', False))
+                    enddt = dateutil.parser.parse(obj.get('_source', {}).get('endtime', False))
+                chart.add(startdt, enddt, obj_name, color=color)
         chart.build_gantt(gantt_filename + '.png', title)
+
+def get_color():
+    while True:
+        yield 'green'
+        yield 'orange'
 
 def get_aoi(aoi_id, aoi_index):
     '''
