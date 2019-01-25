@@ -5,6 +5,8 @@ Generates a gantt chart from given information
 '''
 from dateutil import parser
 import datetime as dt
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as font_manager
 import matplotlib.dates
@@ -53,7 +55,6 @@ class gantt_chart():
         fig.autofmt_xdate()
         plt.title(title, loc='center')
         plt.savefig(filename)
-        plt.show()
 
 if __name__ == '__main__':
     filename = 'test.png'
