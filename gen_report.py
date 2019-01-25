@@ -36,18 +36,16 @@ def plot_obj(es_obj_dict, aoi, product_name):
     aoi_name = aoi.get('_id', 'AOI_err')
     gantt_reg = '{}_{}_track_{}_chart'
     for track in es_obj_dict.keys():
+        title = 'Coverage Report for {}, Track {}'.format(aoi_name, track)
         gantt_filename = gantt_reg.format(aoi_name, product_name, track)
-        project = gantt.Project(name=gantt_filename)
+        chart  = gantt.gantt_chart()
         es_obj_list = es_obj_dict.get(track, [])
         for obj in es_obj_list:
             uid = obj.get('_id')
             startdt = dateutil.parser.parse(obj.get('_source', {}).get('starttime', False))
             enddt = dateutil.parser.parse(obj.get('_source', {}).get('endtime', False))
-            delta_days = (enddt - startdt).days
-            task = gantt.Task(name=uid, start=startdt, duration=delta_days)
-            project.add_task(task)
-        project.make_svg_for_tasks(filename=gantt_filename + '.svg')
-
+            chart.add(startdt, enddt, uid, color='orange'):
+       chart.build_gantt(filename, title)
 
 def get_aoi(aoi_id, aoi_index):
     '''
