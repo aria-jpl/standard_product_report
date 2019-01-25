@@ -2,6 +2,8 @@ FROM hysds/pge-base:latest
 MAINTAINER jlinick "Justin.P.Linick@jpl.nasa.gov"
 LABEL description="Standard Product Report"
 
+RUN sudo pip install matplotlib
+
 USER ops
 # copy packages
 COPY . /home/ops/verdi/ops/standard_product_report
