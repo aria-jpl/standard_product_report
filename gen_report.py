@@ -45,7 +45,7 @@ def plot_obj(es_obj_dict, aoi, product_name):
             startdt = dateutil.parser.parse(obj.get('_source', {}).get('starttime', False))
             enddt = dateutil.parser.parse(obj.get('_source', {}).get('endtime', False))
             chart.add(startdt, enddt, uid, color='orange'):
-       chart.build_gantt(filename, title)
+        chart.build_gantt(gantt_filename + '.png', title)
 
 def get_aoi(aoi_id, aoi_index):
     '''
