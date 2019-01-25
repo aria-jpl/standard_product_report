@@ -27,10 +27,25 @@ def main():
     acq_lists = sort_by_track(get_objects('acq-list', aoi))
     ifg_cfgs = sort_by_track(get_objects('ifg-cfg', aoi))
     ifgs = sort_by_track(get_objects('ifg', aoi))
+    
+    print_results(acqs, slcs, acq_lists, ifg_cfgs, ifgs)
 
     #test plot ifgs in a gant chart by track
     plot_obj(ifgs, aoi, 'ifgs')
 
+def print_results(acqs, slcs, acq_lists, ifg_cfgs, ifgs):
+    print_object('Acquisitions', acqs)
+    print_object('SLCs', slcs)
+    print_object('Acquisition-Lists', acq_lists)
+    print_object('IFG-CFGs', ifg_cfgs)
+    print_object('IFGs', ifgs)
+
+def print_object(name, obj_dct):
+    '''prints the count of objects by track'''
+    keys = obj_dct.keys()
+    print('-----------------------------------------\nResults for: {}'.format(name))
+    for track in keys:
+        print('Track {} count: {}'.format(track, len(obj_dct.get(track, []))))
 
 def plot_obj(es_obj_dict, aoi, product_name):
     aoi_name = aoi.get('_id', 'AOI_err')
@@ -38,13 +53,13 @@ def plot_obj(es_obj_dict, aoi, product_name):
     for track in es_obj_dict.keys():
         title = 'Coverage Report for {}, Track {}'.format(aoi_name, track)
         gantt_filename = gantt_reg.format(aoi_name, product_name, track)
-        chart  = gantt.gantt_chart()
+        chart = gantt.gantt_chart()
         es_obj_list = es_obj_dict.get(track, [])
         for obj in es_obj_list:
             uid = obj.get('_id')
             startdt = dateutil.parser.parse(obj.get('_source', {}).get('starttime', False))
             enddt = dateutil.parser.parse(obj.get('_source', {}).get('endtime', False))
-            chart.add(startdt, enddt, uid, color='orange'):
+            chart.add(startdt, enddt, uid, color='orange')
         chart.build_gantt(gantt_filename + '.png', title)
 
 def get_aoi(aoi_id, aoi_index):
