@@ -4,7 +4,7 @@ LABEL description="Standard Product Report"
 
 USER ops
 
-RUN sudo pip install matplotlib
+RUN sudo pip install matplotlib==2.2.3
 
 # copy packages
 COPY . /home/ops/verdi/ops/standard_product_report
