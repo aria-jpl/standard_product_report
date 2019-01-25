@@ -25,7 +25,7 @@ class gantt_chart():
         '''builds the chart from self.objects'''
         num = len(self.objects)
         pos = np.arange(0.5,num*0.5+0.5,0.5)
-        fig_height = 5 + num
+        fig_height = 5 + num * 0.25
         fig = plt.figure(figsize=(20,fig_height))
         ax = fig.add_subplot(111)
         ylabels = []
@@ -43,7 +43,7 @@ class gantt_chart():
         ax.grid(color = 'g', linestyle = ':')
         ax.xaxis_date()
         #rule = rrulewrapper(WEEKLY, interval=1)
-        rule = rrulewrapper(DAILY, interval=1)
+        rule = rrulewrapper(WEEKLY, interval=1)
         loc = RRuleLocator(rule)
         formatter = DateFormatter("%d-%b")
         ax.xaxis.set_major_locator(loc)

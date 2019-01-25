@@ -61,12 +61,12 @@ def parse_start_end_times(obj):
 
 def parse_start_time(obj):
     '''gets start time'''
-    obj_s = obj.get('_source', {})
-    st = obj_s.get('starttime', False)
-    if not st is False:
-       return dateutil.parser.parse(st)
-    else:
-        return parse_start_end_times(obj)[0]
+    #obj_s = obj.get('_source', {})
+    #st = obj_s.get('starttime', False)
+    #if not st is False:
+    #return dateutil.parser.parse(st)
+    #else:
+    return str(parse_start_end_times(obj)[0])
 
 def sort_by_frame(obj_list):
     '''
@@ -92,13 +92,14 @@ def plot_obj(es_obj_dict, aoi, product_name):
         chart = gantt.gantt_chart()
         #sort by frame
         es_frame_dict = sort_by_frame(es_obj_list)
-        for frame in es_frame_dict.keys():
+        for frame in sorted(es_frame_dict.keys()):
             es_frame_list = es_frame_dict.get(frame, [])
+            #print('found {} ifgs for frame {}'.format(len(es_frame_list), frame))
             es_frame_list = sorted(es_frame_list, key=lambda x: parse_start_time(x))
             color = col.next()
-            for obj in es_obj_list:
+            for obj in es_frame_list:
                 uid = obj.get('_id')
-                obj_name = 'Track: {}, Frame: {}'.format(track, frame)
+                obj_name = 'F:{}, S:{}'.format(frame, obj.get('_source', {}).get('starttime', '')[0:10])
                 try:
                     startdt, enddt = parse_start_end_times(obj) # attempt to parse from the id dt
                 except:
