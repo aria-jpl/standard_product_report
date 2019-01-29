@@ -4,6 +4,8 @@ LABEL description="Standard Product Report"
 
 USER ops
 
+RUN sudo pip install openpyxl
+
 # copy packages
 COPY . /home/ops/verdi/ops/standard_product_report
 RUN set -ex \

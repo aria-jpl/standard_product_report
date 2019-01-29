@@ -9,6 +9,7 @@ import requests
 from datetime import datetime
 import dateutil.parser
 import gantt
+import excel
 from hysds.celery import app
 
 
@@ -29,6 +30,8 @@ def main():
     ifgs = sort_by_track(get_objects('ifg', aoi))
     
     print_results(acqs, slcs, acq_lists, ifg_cfgs, ifgs)
+    excel.generate(aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs)
+
 
     #test plot ifgs in a gant chart by track
     plot_obj(ifgs, aoi, 'ifgs')
