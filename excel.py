@@ -28,7 +28,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs):
     ifg_dct = convert_to_hash_dict(ifgs)
     #generate the acquisition sheet
     wb = Workbook()
-    ws1 = wb.create_sheet("Products", 0)
+    ws1 = wb.create_sheet("Enumerated Products")
     all_missing_slcs = [] # list by starttime
     titlerow = ['Acquisition List ID', 'SLCs Localized?', 'IFG-CFG generated?', 'IFG generated?', 'Missing SLCS?']
     ws1.append(titlerow)
@@ -40,12 +40,12 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs):
         if not local_slcs:
             missing_acq_list = get_missing(obj, slc_dct, acq_dct) # list of starttime keys
             missing_acqs = [acq_dct.get(x, {}).get('_id', 'UNKNOWN') for x in missing_acq_list]
-            all_missing_slcs.extend(missing_acqs)
+            all_missing_slcs.extend(missing_acqs_list)
             missing_acqs_str = ' '.join(missing_acqs)
         row = [acqid, is_covered(obj, slc_dct), in_dict(hkey, ifg_cfg_dct), in_dict(hkey, ifg_dct), missing_acqs_str]
         ws1.append(row)
     #generate missing slc list
-    ws2 = wb.create_sheet("unlocalized SLCs")
+    ws2 = wb.create_sheet("Missing SLCs")
     all_missing_slcs = sorted(list(set(all_missing_slcs)))
     title_row = ['Missing SLC acq id', 'Start Time', 'End Time']
     ws2.append(title_row)
@@ -56,6 +56,55 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs):
         endtime = acq.get('_source', {}).get('endtime', '-')
         row = [acq_id, starttime, endtime]
         ws2.append(row)
+    #determine all date pairs that should be generated
+    ws3 = wb.create_sheet('Enumerated Date Pairs')
+    all_date_pairs = []
+    title_row = ['expected date pairs']
+    ws3.append(title_row)
+    for key in acq_list_dct.keys():
+        acq_list = acq_list_dct[key]
+        st = dateutil.parser.parse(acq_list.get('_source').get('starttime')).strftime('%Y%m%d')
+        et = dateutil.parser.parse(acq_list.get('_source').get('endtime')).strftime('%Y%m%d')
+        ts = '{}-{}'.format(st, et)
+        all_date_pairs.append(ts)
+    for dt in list(set(all_date_pairs)):
+        ws3.append([dt])
+    #all acquisitions
+    ws4 = wb.create_sheet('Acquisitions')
+    title_row = ['Acquisition ID', 'Start Time', 'End Time']
+    for key in sorted(acq_dct.keys()):
+        acq = acq_dct[key]
+        acq_id = acq.get('_id', 'UNKNOWN')
+        acq_st = acq.get('_source', {}).get('starttime', False)
+        acq_et = acq.get('_source', {}).get('endttime', False)
+        ws4.append([acq_id, acq_st, acq_et])
+    #all slcs
+    ws5 = wb.create_sheet('Localized SLCs')
+    title_row = ['SLC ID', 'Start Time', 'End Time']
+    for key in sorted(slc_dct.keys()):
+        slc = slc_dct[key]
+        slc_id = slc.get('_id', 'UNKNOWN')
+        slc_st = slc.get('_source', {}).get('starttime', False)
+        slc_et = slc.get('_source', {}).get('endttime', False)
+        ws5.append([slc_id, slc_st, slc_et])
+    #all ifg_cfgs
+    ws6 = wb.create_sheet('IFG CFGs')
+    title_row = ['IFG-CFG ID', 'Start Time', 'End Time']
+    for key in ifg_cfg_dct.keys():
+        slc = ifg_cfg_dct[key]
+        slc_id = slc.get('_id', 'UNKNOWN')
+        slc_st = slc.get('_source', {}).get('starttime', False)
+        slc_et = slc.get('_source', {}).get('endttime', False)
+        ws6.append([slc_id, slc_st, slc_et])
+    #all ifgs
+    ws7 = wb.create_sheet('IFGs')
+    title_row = ['IFG ID', 'Start Time', 'End Time']
+    for key in ifg_dct.keys():
+        slc = ifg_dct[key]
+        slc_id = slc.get('_id', 'UNKNOWN')
+        slc_st = slc.get('_source', {}).get('starttime', False)
+        slc_et = slc.get('_source', {}).get('endttime', False)
+        ws7.append([slc_id, slc_st, slc_et])
     wb.save(filename)
 
 def in_dict(hsh, dct):
