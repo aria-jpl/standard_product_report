@@ -40,7 +40,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs):
         if not local_slcs:
             missing_acq_list = get_missing(obj, slc_dct, acq_dct) # list of starttime keys
             missing_acqs = [acq_dct.get(x, {}).get('_id', 'UNKNOWN') for x in missing_acq_list]
-            all_missing_slcs.extend(missing_acqs_list)
+            all_missing_slcs.extend(missing_acq_list)
             missing_acqs_str = ' '.join(missing_acqs)
         row = [acqid, is_covered(obj, slc_dct), in_dict(hkey, ifg_cfg_dct), in_dict(hkey, ifg_dct), missing_acqs_str]
         ws1.append(row)
