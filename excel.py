@@ -48,7 +48,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs):
     ws2 = wb.create_sheet("unlocalized SLCs")
     all_missing_slcs = sorted(list(set(all_missing_slcs)))
     title_row = ['Missing SLC acq id', 'Start Time', 'End Time']
-    ws3.append(title_row)
+    ws2.append(title_row)
     for st in all_missing_slcs:
         acq = acq_dct.get(st, {})
         acq_id = acq.get('_id', 'UNKNOWN')
