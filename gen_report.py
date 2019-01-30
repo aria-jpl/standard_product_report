@@ -34,7 +34,14 @@ def main():
 
 
     #test plot ifgs in a gant chart by track
-    plot_obj(ifgs, aoi, 'ifgs')
+    try:
+        plot_obj(ifgs, aoi, 'ifgs')
+    except:
+        print('Failed to generate ifg plot')
+    try:
+        plot_obj(acq_lists, aoi, 'acq_lists')
+    except:
+        print('Failed to generate acq-list plot')
 
 def print_results(acqs, slcs, acq_lists, ifg_cfgs, ifgs):
     print_object('Acquisitions', acqs)
@@ -53,14 +60,20 @@ def print_object(name, obj_dct):
 def parse_start_end_times(obj):
     '''attempt to parse start end times from file id'''
     reg = '([1-2][0-9]{7})'
-    result = re.findall(reg, obj.get('_id', ''))
-    start = int(result[0])
-    end = int(result[1])
-    if end < start:
-        start, end = end, start
-    end = dateutil.parser.parse(str(end)[0:4] + '-' + str(end)[4:6] + '-' + str(end)[6:8])
-    start = dateutil.parser.parse(str(start)[0:4] + '-' + str(start)[4:6] + '-' + str(start)[6:8])
-    return start, end
+    try:
+        result = re.findall(reg, obj.get('_id', ''))
+        start = int(result[0])
+        end = int(result[1])
+        if end < start:
+            start, end = end, start
+        end = dateutil.parser.parse(str(end)[0:4] + '-' + str(end)[4:6] + '-' + str(end)[6:8])
+        start = dateutil.parser.parse(str(start)[0:4] + '-' + str(start)[4:6] + '-' + str(start)[6:8])
+        return start, end
+    except:
+        obj_s = obj.get('_source', {})
+        st =  dateutil.parser.parse(obj_s.get('starttime', False)).strftime('%Y-%m-%D')
+        et =  dateutil.parser.parse(obj_s.get('endtime', False)).strftime('%Y-%m-%D')
+        return st, et
 
 def parse_start_time(obj):
     '''gets start time'''
@@ -90,7 +103,7 @@ def plot_obj(es_obj_dict, aoi, product_name):
     col = get_color()
     for track in es_obj_dict.keys():
         es_obj_list = es_obj_dict.get(track, [])
-        title = 'Coverage Report for {}, Track {}'.format(aoi_name, track)
+        title = 'Coverage Report for {} over {}, Track {}'.format(product_name, aoi_name, track)
         gantt_filename = gantt_reg.format(aoi_name, product_name, track)
         chart = gantt.gantt_chart()
         #sort by frame
