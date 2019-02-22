@@ -9,15 +9,15 @@ import hashlib
 from openpyxl import Workbook
 import dateutil.parser
 
-def generate(aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs):
+def generate(aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail):
     '''ingests the various products and stages them by track for generating worksheets'''
     # unique tracks based on acquisition list
     unique_tracks = acq_lists.keys()
     for track in unique_tracks:
         print('generating workbook for track {}'.format(track))
-        generate_track(track, aoi, acqs.get(track, []), slcs.get(track, []), acq_lists.get(track, []), ifg_cfgs.get(track, []), ifgs.get(track, []))
+        generate_track(track, aoi, acqs.get(track, []), slcs.get(track, []), acq_lists.get(track, []), ifg_cfgs.get(track, []), ifgs.get(track, []), audit_trail.get(track, []))
 
-def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs):
+def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail):
     '''generates excel sheet for given track, inputs are lists'''
     #stage products
     filename = '{}_T{}.xlsx'.format(aoi.get('_id', 'AOI'), track)
@@ -26,6 +26,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs):
     acq_list_dct = convert_to_hash_dict(acq_lists)
     ifg_cfg_dct = convert_to_hash_dict(ifg_cfgs)
     ifg_dct = convert_to_hash_dict(ifgs)
+    audit_dct = convert_to_dict(audit_trail)
     #generate the acquisition sheet
     wb = Workbook()
     ws1 = wb.create_sheet("Enumerated Products")
@@ -105,6 +106,21 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs):
         slc_st = slc.get('_source', {}).get('starttime', False)
         slc_et = slc.get('_source', {}).get('endttime', False)
         ws7.append([slc_id, slc_st, slc_et])
+    #audit trail
+    ws8 = wb.create_sheet('Audit Trail')
+    #just write all keys
+    title_row = audit_trail[0].get('_source', {}).get('metadata', {}).keys()
+    for x in ['union_geojson', 'context']:
+        title_row.remove(x)
+    ws8.append(title_row)
+    for element in audit_dct.keys():
+        met = element.get('_source', {}).get('metadata', {})
+        publish_row = []
+        audit = audit_dct[key]
+        for key in title_row:
+            val = met.get(key, '')
+            publish_row.append(val)
+        ws8.append(publish_row) 
     wb.save(filename)
 
 def in_dict(hsh, dct):

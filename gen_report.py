@@ -28,9 +28,10 @@ def main():
     acq_lists = sort_by_track(get_objects('acq-list', aoi))
     ifg_cfgs = sort_by_track(get_objects('ifg-cfg', aoi))
     ifgs = sort_by_track(get_objects('ifg', aoi))
-    
+    audit_trail = sort_by_track(get_objects('audit_trail', aoi))
+
     print_results(acqs, slcs, acq_lists, ifg_cfgs, ifgs)
-    excel.generate(aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs)
+    excel.generate(aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail)
 
 
     #test plot ifgs in a gant chart by track
@@ -176,7 +177,7 @@ def get_objects(object_type, aoi):
     '''returns all objects of the object type ['ifg, acq-list, 'ifg-blacklist'] that intersect both
     temporally and spatially with the aoi'''
     #determine index
-    idx_dct = {'ifg':'grq_*_s1-gunw', 'acq-list':'grq_*_acq-list', 'ifg-cfg': 'grq_*_ifg-cfg', 'ifg-blacklist':'grq_*_blacklist', 'slc': 'grq_*_s1-iw_slc', 'acq': 'grq_*_acquisition-s1-iw_slc'}
+    idx_dct = {'audit_trail': 'grq_*_acqlist-audit_trail', 'ifg':'grq_*_s1-gunw', 'acq-list':'grq_*_acq-list', 'ifg-cfg': 'grq_*_ifg-cfg', 'ifg-blacklist':'grq_*_blacklist', 'slc': 'grq_*_s1-iw_slc', 'acq': 'grq_*_acquisition-s1-iw_slc'}
     idx = idx_dct.get(object_type)
     starttime = aoi.get('_source', {}).get('starttime')
     endtime = aoi.get('_source', {}).get('endtime')
