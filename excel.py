@@ -113,10 +113,9 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
     for x in ['union_geojson', 'context']:
         title_row.remove(x)
     ws8.append(title_row)
-    for element in audit_dct.keys():
+    for element in audit_dct.iteritems():
         met = element.get('_source', {}).get('metadata', {})
         publish_row = []
-        audit = audit_dct[key]
         for key in title_row:
             val = met.get(key, '')
             publish_row.append(val)
