@@ -26,7 +26,6 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
     acq_list_dct = convert_to_hash_dict(acq_lists)
     ifg_cfg_dct = convert_to_hash_dict(ifg_cfgs)
     ifg_dct = convert_to_hash_dict(ifgs)
-    audit_dct = convert_to_dict(audit_trail)
     #generate the acquisition sheet
     wb = Workbook()
     ws1 = wb.create_sheet("Enumerated Products")
@@ -113,7 +112,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
     for x in ['union_geojson', 'context']:
         title_row.remove(x)
     ws8.append(title_row)
-    for element in audit_dct.iteritems():
+    for element in audit_trail:
         met = element.get('_source', {}).get('metadata', {})
         publish_row = []
         for key in title_row:
