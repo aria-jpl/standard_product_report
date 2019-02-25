@@ -177,7 +177,7 @@ def get_objects(object_type, aoi):
     '''returns all objects of the object type ['ifg, acq-list, 'ifg-blacklist'] that intersect both
     temporally and spatially with the aoi'''
     #determine index
-    idx_dct = {'audit_trail': 'grq_*_acqlist-audit_trail', 'ifg':'grq_*_s1-gunw', 'acq-list':'grq_*_acq-list', 'ifg-cfg': 'grq_*_ifg-cfg', 'ifg-blacklist':'grq_*_blacklist', 'slc': 'grq_*_s1-iw_slc', 'acq': 'grq_*_acquisition-s1-iw_slc'}
+    idx_dct = {'audit_trail': 'grq_*_s1-gunw-acqlist-audit_trail', 'ifg':'grq_*_s1-gunw', 'acq-list':'grq_*_s1-gunw-acq-list', 'ifg-cfg': 'grq_*_s1-gunw-ifg-cfg', 'ifg-blacklist':'grq_*_blacklist', 'slc': 'grq_*_s1-iw_slc', 'acq': 'grq_*_acquisition-s1-iw_slc'}
     idx = idx_dct.get(object_type)
     starttime = aoi.get('_source', {}).get('starttime')
     endtime = aoi.get('_source', {}).get('endtime')
