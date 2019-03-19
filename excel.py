@@ -46,7 +46,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
             missing_slcs = get_missing_slcs(obj, acq_map, slc_dct) # get list of any missing slc ids
             all_missing_slcs.extend(missing_slcs) # add to master list for later
             missing_slc_str = ' '.join(missing_slcs)
-            missing_acqs = [slc_map.get(x, False) for x in missing_slcs]
+            missing_acqs = [slc_map.get(x, 'id_not_found') for x in missing_slcs]
             missing_acq_str = ' '.join(missing_acqs)
         row = [acqlistid, slcs_are_localized, in_dict(hkey, ifg_cfg_dct), in_dict(hkey, ifg_dct), missing_slc_str, missing_acq_str]
         ws1.append(row)
@@ -166,7 +166,7 @@ def get_missing_slcs(obj, acq_map, slc_dct):
     slave = obj.get('_source', {}).get('metadata', {}).get('slave_scenes', [])
     acq_ids = list(set(master).union(set(slave)))
     #convert the acquisition ids to slc ids
-    slc_ids = [acq_map.get(x, False) for x in acq_ids]
+    slc_ids = [acq_map.get(x, 'id_not_found') for x in acq_ids]
     #if the slc ids are not in the slc dict
     missing = []
     for slc_id in slc_ids:
