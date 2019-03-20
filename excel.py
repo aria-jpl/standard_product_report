@@ -3,6 +3,7 @@
 '''
 Contains functions for writing Excel files for the Standard Product Report
 '''
+from __future__ import print_function
 import re
 import pickle
 import hashlib
@@ -31,7 +32,8 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
 
     # generate the acquisition sheet
     wb = Workbook()
-    ws1 = wb.create_sheet("Enumerated Products")
+    ws1 = wb.active
+    ws1.title = "Enumerated Products"
     all_missing_slcs = [] # list of missing slcs by acquisition id
     titlerow = ['acquisition-list id', 'slcs localized?', 'ifg-cfg generated?', 'ifg generated?', 'missing slc ids', 'missing acq ids']
     ws1.append(titlerow)
@@ -39,15 +41,16 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
     for hkey in acq_list_dct.keys():
         obj = acq_list_dct.get(hkey)
         acqlistid = obj.get('_source', {}).get('id', 'No acquisition id found')
-        slcs_are_localized = is_covered(obj, slc_dct) # True/False if SLCs are localized
+        slcs_are_localized = True # is_covered(obj, slc_dct) # True/False if SLCs are localized
         missing_acq_str = ''
         missing_slc_str = ''
-        if not slcs_are_localized:
-            missing_slcs = get_missing_slcs(obj, acq_map, slc_dct) # get list of any missing slc ids
+        missing_slcs = get_missing_slcs(obj, acq_map, slc_dct) # get list of any missing slc ids
+        if len(missing_slcs) > 0:
+            slcs_are_localized = False
             all_missing_slcs.extend(missing_slcs) # add to master list for later
-            missing_slc_str = ' '.join(missing_slcs)
+            missing_slc_str = ', '.join(missing_slcs)
             missing_acqs = [slc_map.get(x, 'id_not_found') for x in missing_slcs]
-            missing_acq_str = ' '.join(missing_acqs)
+            missing_acq_str = ', '.join(missing_acqs)
         row = [acqlistid, slcs_are_localized, in_dict(hkey, ifg_cfg_dct), in_dict(hkey, ifg_dct), missing_slc_str, missing_acq_str]
         ws1.append(row)
     # generate missing slc list
@@ -73,20 +76,23 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
         et = dateutil.parser.parse(acq_list.get('_source').get('endtime')).strftime('%Y%m%d')
         ts = '{}-{}'.format(et, st)
         all_date_pairs.append(ts)
-    for dt in list(set(all_date_pairs)).sort():
+    for dt in sorted(list(set(all_date_pairs))):
         ws3.append([dt])
     #all acquisitions
     ws4 = wb.create_sheet('Acquisitions')
-    title_row = ['acquisition id', 'starttime', 'endtime']
+    title_row = ['acquisition_id', 'starttime', 'endtime', 'slc_id']
+    ws4.append(title_row)
     for key in sorted(acq_dct.keys()):
         acq = acq_dct[key]
         acq_id = acq.get('_id', 'UNKNOWN')
         acq_st = acq.get('_source', {}).get('starttime', False)
         acq_et = acq.get('_source', {}).get('endttime', False)
-        ws4.append([acq_id, acq_st, acq_et])
+        slc_id = acq.get('_source', {}).get('metadata', {}).get('identifier')
+        ws4.append([acq_id, acq_st, acq_et, slc_id])
     #all slcs
     ws5 = wb.create_sheet('Localized SLCs')
-    title_row = ['slc id', 'starttime', 'endtime']
+    title_row = ['slc_id', 'starttime', 'endtime']
+    ws5.append(title_row)
     for key in sorted(slc_dct.keys()):
         slc = slc_dct[key]
         slc_id = slc.get('_id', 'UNKNOWN')
@@ -96,6 +102,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
     #all ifg_cfgs
     ws6 = wb.create_sheet('IFG CFGs')
     title_row = ['ifg-cfg id', 'starttime', 'endtime']
+    ws6.append(title_row)
     for key in ifg_cfg_dct.keys():
         slc = ifg_cfg_dct[key]
         slc_id = slc.get('_id', 'UNKNOWN')
@@ -106,6 +113,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
     #all ifgs
     ws7 = wb.create_sheet('IFGs')
     title_row = ['ifg id', 'starttime', 'endtime']
+    ws7.append(title_row)
     for key in ifg_dct.keys():
         slc = ifg_dct[key]
         slc_id = slc.get('_id', 'UNKNOWN')
@@ -126,6 +134,16 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
             val = met.get(key, '')
             publish_row.append(val)
         ws8.append(publish_row) 
+    ws9 = wb.create_sheet('Acquisition-Lists')
+    title_row = ['acq-list id', 'master_scenes', 'slave_scenes', 'master_orbit_file', 'slave_orbit_file']
+    ws9.append(title_row)
+    for element in acq_lists:
+        acq_id = element.get('_id', 'UNKNOWN')
+        master_scenes = ', '.join(element.get('_source', {}).get('metadata', {}).get('master_scenes', []))
+        slave_scenes = ', '.join(element.get('_source', {}).get('metadata', {}).get('slave_scenes', []))
+        master_orbit_file = element.get('_source', {}).get('metadata', {}).get('master_orbit_file', [])
+        slave_orbit_file = element.get('_source', {}).get('metadata', {}).get('slave_orbit_file', [])
+        ws9.append([acq_id, master_scenes, slave_scenes, master_orbit_file, slave_orbit_file])
     wb.save(filename)
 
 def in_dict(hsh, dct):
@@ -206,17 +224,17 @@ def parse_slc_id(obj):
     '''returns the slc identifier for the acquisition list product'''
     obj_type = obj.get('_source', {}).get('dataset', False)
     if obj_type == 'acquisition-S1-IW_SLC':
-        return obj.get('_source', {}).get('metadata', {}).get('dataset', False)
+        return obj.get('_source', {}).get('metadata', {}).get('identifier')
     if obj_type == 'S1-IW_SLC':
         return obj.get('_source', {}).get('id')
-    return False
+    return 'no_id_found'
 
 def map_slcs_to_acqs(acqs):
     '''returns a dict that takes in an SLC id and returns the associated acq id'''
     mapping_dict = {}
     for acq in acqs:
         slc_id = parse_slc_id(acq)
-        acq_id = acq.get('_source', {}).get('id', False)
+        acq_id = acq.get('_source').get('id')
         mapping_dict[slc_id] = acq_id
     return mapping_dict
         
@@ -225,6 +243,6 @@ def map_acqs_to_slcs(acqs):
     mapping_dict = {}
     for acq in acqs:
         slc_id = parse_slc_id(acq)
-        acq_id = acq.get('_source', {}).get('id', False)
+        acq_id = acq.get('_source').get('id')
         mapping_dict[acq_id] = slc_id
     return mapping_dict
