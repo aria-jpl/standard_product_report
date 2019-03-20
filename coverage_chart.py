@@ -53,7 +53,7 @@ class coverage_chart():
         ax.grid(color = 'g', linestyle = ':')
         ax.xaxis_date()
         #rule = rrulewrapper(WEEKLY, interval=1)
-        rule = rrulewrapper(WEEKLY, interval=1)
+        rule = rrulewrapper(MONTHLY, interval=1)
         loc = RRuleLocator(rule)
         formatter = DateFormatter("%Y-%m-%d")
         ax.xaxis.set_major_locator(loc)
