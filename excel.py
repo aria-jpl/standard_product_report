@@ -100,7 +100,8 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
         slc = ifg_cfg_dct[key]
         slc_id = slc.get('_id', 'UNKNOWN')
         slc_st = slc.get('_source', {}).get('starttime', False)
-        slc_et = slc.get('_source', {}).get('endttime', False)
+        slc_et = slc.get('_source', {}).get('endtime', False)
+        
         ws6.append([slc_id, slc_st, slc_et])
     #all ifgs
     ws7 = wb.create_sheet('IFGs')

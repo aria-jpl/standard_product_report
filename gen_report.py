@@ -8,7 +8,8 @@ import json
 import requests
 from datetime import datetime
 import dateutil.parser
-import gantt
+#import gantt
+import coverage_chart
 import excel
 from hysds.celery import app
 
@@ -32,17 +33,27 @@ def main():
 
     print_results(acqs, slcs, acq_lists, ifg_cfgs, ifgs)
     excel.generate(aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail)
+    
+    #attempt to plot a coverage chart by track
+    try:
+        gen_coverage_plot(ifgs, aoi, 'ifgs')
+    except:
+        print('failed to generate coverage plot for ifgs')
 
+    try:
+        gen_coverage_plot(acq_lists, aoi, 'acq-lists')
+    except:
+        print('failed to generate coverage plot for acquisition lists')
 
     #test plot ifgs in a gant chart by track
-    try:
-        plot_obj(ifgs, aoi, 'ifgs')
-    except:
-        print('Failed to generate ifg plot')
-    try:
-        plot_obj(acq_lists, aoi, 'acq_lists')
-    except:
-        print('Failed to generate acq-list plot')
+    #try:
+    #    plot_obj(ifgs, aoi, 'ifgs')
+    #except:
+    #    print('Failed to generate ifg plot')
+    #try:
+    #    plot_obj(acq_lists, aoi, 'acq_lists')
+    #except:
+    #    print('Failed to generate acq-list plot')
 
 def print_results(acqs, slcs, acq_lists, ifg_cfgs, ifgs):
     print_object('Acquisitions', acqs)
@@ -123,6 +134,37 @@ def plot_obj(es_obj_dict, aoi, product_name):
                     startdt = dateutil.parser.parse(obj.get('_source', {}).get('starttime', False))
                     enddt = dateutil.parser.parse(obj.get('_source', {}).get('endtime', False))
                 chart.add(startdt, enddt, obj_name, color=color)
+        chart.build_gantt(gantt_filename + '.png', title)
+
+def gen_coverage_plot(es_obj_dict, aoi, product_name):
+    aoi_name = aoi.get('_id', 'AOI_err')
+    fn_reg = '{}_{}_track_{}_coverage-plot'
+    col = 'gray'
+    for track in es_obj_dict.keys():
+        es_obj_list = es_obj_dict.get(track, [])
+        title = 'Coverage Plot for {} over {}, Track {}'.format(product_name, aoi_name, track)
+        plot_filename = fn_reg.format(aoi_name, product_name, track)
+        chart = coverage_chart.coverage_chart()
+        #sort by frame
+        es_frame_dict = sort_by_frame(es_obj_list)
+        for frame in sorted(es_frame_dict.keys()):
+            es_frame_list = es_frame_dict.get(frame, [])
+            #print('found {} ifgs for frame {}'.format(len(es_frame_list), frame))
+            es_frame_list = sorted(es_frame_list, key=lambda x: parse_start_time(x))
+            #color = col.next()
+            for obj in es_frame_list:
+                uid = obj.get('_id')
+                obj_name = 'F:{}, S:{}'.format(frame, obj.get('_source', {}).get('starttime', '')[0:10])
+                location = obj.get('_source', {}).get('location', {}).get('coordinates', False)[0]
+                lat_list = [x[1] for x in location]
+                minlat = min(lat_list)
+                maxlat = max(lat_list)
+                try:
+                    startdt, enddt = parse_start_end_times(obj) # attempt to parse from the id dt
+                except:
+                    startdt = dateutil.parser.parse(obj.get('_source', {}).get('starttime', False))
+                    enddt = dateutil.parser.parse(obj.get('_source', {}).get('endtime', False))
+                chart.add(startdt, enddt, minlat, maxlat, obj_name, color=color)
         chart.build_gantt(gantt_filename + '.png', title)
 
 def get_color():
