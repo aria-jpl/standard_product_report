@@ -140,7 +140,7 @@ def plot_obj(es_obj_dict, aoi, product_name):
 def gen_coverage_plot(es_obj_dict, aoi, product_name):
     aoi_name = aoi.get('_id', 'AOI_err')
     fn_reg = '{}_{}_track_{}_coverage-plot'
-    col = 'gray'
+    color = 'gray'
     for track in es_obj_dict.keys():
         es_obj_list = es_obj_dict.get(track, [])
         title = 'Coverage Plot for {} over {}, Track {}'.format(product_name, aoi_name, track)
@@ -166,7 +166,7 @@ def gen_coverage_plot(es_obj_dict, aoi, product_name):
                     startdt = dateutil.parser.parse(obj.get('_source', {}).get('starttime', False))
                     enddt = dateutil.parser.parse(obj.get('_source', {}).get('endtime', False))
                 chart.add(startdt, enddt, minlat, maxlat, obj_name, color=color)
-        chart.build_gantt(gantt_filename + '.png', title)
+        chart.build(plot_filename + '.png', title)
 
 def get_color():
     while True:
