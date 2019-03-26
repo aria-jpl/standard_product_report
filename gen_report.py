@@ -31,6 +31,7 @@ def main():
     ifgs = sort_by_track(get_objects('ifg', aoi))
     audit_trail = sort_by_track(get_objects('audit_trail', aoi))
 
+    product_name = 'AOI-ops-report-{}'.format(aoi_id)
     print_results(acqs, slcs, acq_lists, ifg_cfgs, ifgs)
     excel.generate(aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail)
     
