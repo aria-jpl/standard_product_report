@@ -1,5 +1,5 @@
 {
-    "label": "Standard Product - S1-GUNW - AOI Enumeration Report",
+    "label": "Standard Product S1-GUNW - AOI Enumeration Report",
     "submission_type": "iteration",
     "enable_dedup": false,
     "params" : [
@@ -15,7 +15,7 @@
       "name": "date_pairs",
       "from": "submitter",
       "type": "text",
-      "placeholder": "Comma separated date-pairs: YYmmDD-YYmmDD,YYmmDD-YYmmDD"
+      "placeholder": "Comma separated date-pairs: YYmmdd-YYmmdd,YYmmdd-YYmmdd"
     }
     ]
 }

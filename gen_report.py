@@ -71,7 +71,7 @@ def gen_product_jsons(aoi, product_id):
     location = aoi.get('_source', {}).get('location', False)
     starttime = aoi.get('_source', {}).get('starttime', False)
     endtime = aoi.get('_source', {}).get('endtime', False)
-    ds = {'label':product_id, 'starttime':starttime, 'endtime':endtime, 'location':location, 'version':version}
+    ds = {'label':product_id,'version': 'v1.0',  'starttime':starttime, 'endtime':endtime, 'location':location}
     outpath = os.path.join(product_id, '{}.dataset.json'.format(product_id))
     with open(outpath, 'w') as outf:
         json.dump(ds, outf)
@@ -93,7 +93,7 @@ def validate_enumeration(date_pair_string):
         second_date = dateutil.parser.parse(dates[1])
         if first_date < second_date:
             first_date, second_date = second_date, first_date
-        output_date = '{}-{}'.format(first_date.strftime('%Y%m%D'), second_date.strftime('%Y%m%D'))
+        output_date = '{}-{}'.format(first_date.strftime('%Y%m%d'), second_date.strftime('%Y%m%d'))
         output_pairs.append(output_date)
     return output_pairs
 

@@ -149,17 +149,18 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
         wb.save(filename)
         return
     # print the human enumerated list
-    ws10 = wb.create_sheet('Human Enumerated Date Pairs')
+    ws10 = wb.create_sheet('Input Enumerated Date Pairs')
     title_row = ['date_pairs']
     ws10.append(title_row)
     for date in enumeration:
         ws10.append([date])
     #generate the list of human versus algorithm derived date pairs
     ws11 = wb.create_sheet('Enumeration Comparison')
-    title_row = ['Unique Date Pair', 'In Human Enumeration?', 'In HySDS Enumeration?', 'Reason HySDS Skipped', 'Audit Comment']
+    title_row = ['Unique Date Pair', 'In Input Enumeration?', 'In HySDS Enumeration?', 'Reason HySDS Skipped', 'Audit Comment']
+    ws11.append(title_row)
     alg_date_pairs = all_date_pairs
     human_date_pairs = enumeration
-    total_date_pairs = list(set(alg_date_pairs + human_date_pairs))
+    total_date_pairs = sorted(list(set(alg_date_pairs + human_date_pairs)))
     comment_dict = build_audit_dict(audit_trail, 'comment')
     failure_dict = build_audit_dict(audit_trail, 'failure_reason')
     for date_pair in total_date_pairs:
@@ -184,7 +185,7 @@ def build_audit_dict(audit_trail, field):
         et = met.get('endtime')
         st_str = dateutil.parser.parse(st).strftime('%Y%m%d')
         et_str = dateutil.parser.parse(et).strftime('%Y%m%d')
-        dt_str = '{}-{}'.format(st_str, et_str)
+        dt_str = '{}-{}'.format(et_str, st_str)
         field_result = met.get(field, '')
         if dt_str not in obj_dict.keys() or not obj_dict.get(dt_str, '') == '':
             obj_dict[dt_str] = field_result
