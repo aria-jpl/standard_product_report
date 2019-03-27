@@ -3,6 +3,7 @@
 '''
 Generates a report for standard products covering the input AOI
 '''
+import os
 import re
 import json
 import requests
@@ -24,16 +25,20 @@ def main():
     if aoi_id is False or aoi_index is False:
         raise Exception('invalid inputs of aoi_id: {}, aoi_index: {}'.format(aoi_id, aoi_index))
     aoi = get_aoi(aoi_id, aoi_index)
+    enumeration = ctx.get('date_pairs', False) #list of date pairs
+    if enumeration:
+        enumeration = validate_enumeration(enumeration)
     acqs = sort_by_track(get_objects('acq', aoi))
     slcs = sort_by_track(get_objects('slc', aoi))
     acq_lists = sort_by_track(get_objects('acq-list', aoi))
     ifg_cfgs = sort_by_track(get_objects('ifg-cfg', aoi))
     ifgs = sort_by_track(get_objects('ifg', aoi))
     audit_trail = sort_by_track(get_objects('audit_trail', aoi))
-
-    product_name = 'AOI-ops-report-{}'.format(aoi_id)
+    product_id = 'AOI_ops_report-{}'.format(aoi_id)
+    if enumeration:
+        product_id = 'AOI_enumeration_report-{}'.format(aoi_id)
     print_results(acqs, slcs, acq_lists, ifg_cfgs, ifgs)
-    excel.generate(aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail)
+    excel.generate(aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail, enumeration=enumeration)
     
     #attempt to plot a coverage chart by track
     try:
@@ -55,6 +60,42 @@ def main():
     #    plot_obj(acq_lists, aoi, 'acq_lists')
     #except:
     #    print('Failed to generate acq-list plot')
+
+    #make the product
+    os.mkdir(product_id)
+    os.system('mv AOI* ./{}'.format(product_id))
+    gen_product_jsons(aoi, product_id)
+
+def gen_product_jsons(aoi, product_id):
+    '''generates the appropriate product json files in the product directory'''
+    location = aoi.get('_source', {}).get('location', False)
+    starttime = aoi.get('_source', {}).get('starttime', False)
+    endtime = aoi.get('_source', {}).get('endtime', False)
+    ds = {'label':product_id, 'starttime':starttime, 'endtime':endtime, 'location':location, 'version':version}
+    outpath = os.path.join(product_id, '{}.dataset.json'.format(product_id))
+    with open(outpath, 'w') as outf:
+        json.dump(ds, outf)
+    met = {}
+    outpath = os.path.join(product_id, '{}.met.json'.format(product_id))
+    with open(outpath, 'w') as outf:
+        json.dump(met, outf)
+
+def validate_enumeration(date_pair_string):
+    '''validates the enumeration date pair list to be the appropriate format. Returns as a list'''
+    date_pairs = date_pair_string.replace(' ','').replace('_', '-').split(',')
+    output_pairs = []
+    for date_pair in date_pairs:
+        dates = date_pair.split('-')
+        if len(dates) < 2:
+            print('Failed parsing date pair: {}. skipping.'.format(date_pair))
+            continue
+        first_date = dateutil.parser.parse(dates[0])
+        second_date = dateutil.parser.parse(dates[1])
+        if first_date < second_date:
+            first_date, second_date = second_date, first_date
+        output_date = '{}-{}'.format(first_date.strftime('%Y%m%D'), second_date.strftime('%Y%m%D'))
+        output_pairs.append(output_date)
+    return output_pairs
 
 def print_results(acqs, slcs, acq_lists, ifg_cfgs, ifgs):
     print_object('Acquisitions', acqs)

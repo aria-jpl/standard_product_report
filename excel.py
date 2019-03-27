@@ -10,15 +10,15 @@ import hashlib
 from openpyxl import Workbook
 import dateutil.parser
 
-def generate(aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail):
+def generate(aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail, enumeration=False):
     '''ingests the various products and stages them by track for generating worksheets'''
     # unique tracks based on acquisition list
     unique_tracks = acq_lists.keys()
     for track in unique_tracks:
         print('generating workbook for track {}'.format(track))
-        generate_track(track, aoi, acqs.get(track, []), slcs.get(track, []), acq_lists.get(track, []), ifg_cfgs.get(track, []), ifgs.get(track, []), audit_trail.get(track, []))
+        generate_track(track, aoi, acqs.get(track, []), slcs.get(track, []), acq_lists.get(track, []), ifg_cfgs.get(track, []), ifgs.get(track, []), audit_trail.get(track, []), enumeration)
 
-def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail):
+def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail, enumeration):
     '''generates excel sheet for given track, inputs are lists'''
     # stage products
     filename = '{}_T{}.xlsx'.format(aoi.get('_id', 'AOI'), track)
@@ -108,7 +108,6 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
         slc_id = slc.get('_id', 'UNKNOWN')
         slc_st = slc.get('_source', {}).get('starttime', False)
         slc_et = slc.get('_source', {}).get('endtime', False)
-        
         ws6.append([slc_id, slc_st, slc_et])
     #all ifgs
     ws7 = wb.create_sheet('IFGs')
@@ -144,7 +143,52 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
         master_orbit_file = element.get('_source', {}).get('metadata', {}).get('master_orbit_file', [])
         slave_orbit_file = element.get('_source', {}).get('metadata', {}).get('slave_orbit_file', [])
         ws9.append([acq_id, master_scenes, slave_scenes, master_orbit_file, slave_orbit_file])
+
+    #if there is an enumeration, generate the appropriate pages
+    if enumeration is False:
+        wb.save(filename)
+        return
+    # print the human enumerated list
+    ws10 = wb.create_sheet('Human Enumerated Date Pairs')
+    title_row = ['date_pairs']
+    ws10.append(title_row)
+    for date in enumeration:
+        ws10.append([date])
+    #generate the list of human versus algorithm derived date pairs
+    ws11 = wb.create_sheet('Enumeration Comparison')
+    title_row = ['Unique Date Pair', 'In Human Enumeration?', 'In HySDS Enumeration?', 'Reason HySDS Skipped', 'Audit Comment']
+    alg_date_pairs = all_date_pairs
+    human_date_pairs = enumeration
+    total_date_pairs = list(set(alg_date_pairs + human_date_pairs))
+    comment_dict = build_audit_dict(audit_trail, 'comment')
+    failure_dict = build_audit_dict(audit_trail, 'failure_reason')
+    for date_pair in total_date_pairs:
+        in_human_enumeration = False
+        if date_pair in human_date_pairs:
+            in_human_enumeration = True
+        in_alg_enumeration = False
+        if date_pair in alg_date_pairs:
+            in_alg_enumeration = True
+        comment = comment_dict.get(date_pair, '')
+        failure_reason = failure_dict.get(date_pair, '')
+        ws11.append([date_pair, in_human_enumeration, in_alg_enumeration, comment, failure_reason])
     wb.save(filename)
+ 
+
+def build_audit_dict(audit_trail, field):
+    '''builds a dict that goes by YMD-YMD as key which returns the metadata field desired'''
+    obj_dict = {}
+    for element in audit_trail:
+        met = element.get('_source', {}).get('metadata', {})
+        st = met.get('starttime')
+        et = met.get('endtime')
+        st_str = dateutil.parser.parse(st).strftime('%Y%m%d')
+        et_str = dateutil.parser.parse(et).strftime('%Y%m%d')
+        dt_str = '{}-{}'.format(st_str, et_str)
+        field_result = met.get(field, '')
+        if dt_str not in obj_dict.keys() or not obj_dict.get(dt_str, '') == '':
+            obj_dict[dt_str] = field_result
+    return obj_dict
 
 def in_dict(hsh, dct):
     '''returns true if the hash input is a key in the input dict'''
