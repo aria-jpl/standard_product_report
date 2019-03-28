@@ -111,14 +111,21 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
         ws6.append([slc_id, slc_st, slc_et])
     #all ifgs
     ws7 = wb.create_sheet('IFGs')
-    title_row = ['ifg id', 'starttime', 'endtime']
+    title_row = ['ifg id', 'starttime', 'endtime', 'acq-list', 'ifg-cfg']
     ws7.append(title_row)
     for key in ifg_dct.keys():
         slc = ifg_dct[key]
         slc_id = slc.get('_id', 'UNKNOWN')
         slc_st = slc.get('_source', {}).get('starttime', False)
         slc_et = slc.get('_source', {}).get('endttime', False)
-        ws7.append([slc_id, slc_st, slc_et])
+        #determine if the ifg-cfg and acq-list exists for the ifg
+        ifg_cfg = ifg_cfg_dct.get(key, False)
+        if ifg_cfg:
+            ifg_cfg = ifg_cfg.get('_id', False)
+        acq_list = acq_list_dct.get(key, False)
+        if acq_list:
+            acq_list = acq_list.get('_id', False)
+        ws7.append([slc_id, slc_st, slc_et, acq_list, ifg_cfg])
     #audit trail
     ws8 = wb.create_sheet('Audit Trail')
     #just write all keys
