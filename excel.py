@@ -163,7 +163,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
         ws10.append([date])
     #generate the list of human versus algorithm derived date pairs
     ws11 = wb.create_sheet('Enumeration Comparison')
-    title_row = ['Unique Date Pair', 'In Input Enumeration?', 'In HySDS Enumeration?', 'Reason HySDS Skipped', 'Audit Comment']
+    title_row = ['Unique Date Pair', 'In Input Enumeration?', 'In HySDS Enumeration?', 'Reason HySDS Skipped', 'Audit Comment', 'Reference Failure']
     ws11.append(title_row)
     alg_date_pairs = all_date_pairs
     human_date_pairs = enumeration
@@ -179,7 +179,8 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
             in_alg_enumeration = True
         comment = comment_dict.get(date_pair, '')
         failure_reason = failure_dict.get(date_pair, '')
-        ws11.append([date_pair, in_human_enumeration, in_alg_enumeration, comment, failure_reason])
+        ref_failure = failure_dict.get(date_pair[:8], '')
+        ws11.append([date_pair, in_human_enumeration, in_alg_enumeration, failure_reason, comment, ref_failure])
     wb.save(filename)
  
 
@@ -188,14 +189,23 @@ def build_audit_dict(audit_trail, field):
     obj_dict = {}
     for element in audit_trail:
         met = element.get('_source', {}).get('metadata', {})
-        st = met.get('starttime')
-        et = met.get('endtime')
-        st_str = dateutil.parser.parse(st).strftime('%Y%m%d')
-        et_str = dateutil.parser.parse(et).strftime('%Y%m%d')
-        dt_str = '{}-{}'.format(et_str, st_str)
+        #st = dateutil.parser.parse(met.get('starttime'))
+        #et = dateutil.parser.parse(met.get('endtime'))
+        #st_str = dateutil.parser.parse(st)
+        try:
+            reference_date = dateutil.parser.parse(met.get('reference_date', False)).strftime('%Y%m%d')
+        except:
+            reference_date = '00000000'
+        try:
+            secondary_date = dateutil.parser.parse(met.get('secondary_date', False)).strftime('%Y%m%d')
+        except:
+            secondary_date = '00000000'
+        dt_str = '{}-{}'.format(reference_date, secondary_date)
         field_result = met.get(field, '')
-        if dt_str not in obj_dict.keys() or not obj_dict.get(dt_str, '') == '':
+        if obj_dict.get(dt_str, '') == '':
             obj_dict[dt_str] = field_result
+        if obj_dict.get(reference_date, '') == '':
+            obj_dict[reference_date] = field_result
     return obj_dict
 
 def in_dict(hsh, dct):
