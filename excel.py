@@ -5,6 +5,7 @@ Contains functions for writing Excel files for the Standard Product Report
 '''
 from __future__ import print_function
 import re
+import json
 import pickle
 import hashlib
 from openpyxl import Workbook
@@ -80,15 +81,16 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
         ws3.append([dt])
     #all acquisitions
     ws4 = wb.create_sheet('Acquisitions')
-    title_row = ['acquisition_id', 'starttime', 'endtime', 'slc_id']
+    title_row = ['acquisition_id', 'starttime', 'endtime', 'slc_id', 'ipf_version']
     ws4.append(title_row)
     for key in sorted(acq_dct.keys()):
         acq = acq_dct[key]
         acq_id = acq.get('_id', 'UNKNOWN')
         acq_st = acq.get('_source', {}).get('starttime', False)
         acq_et = acq.get('_source', {}).get('endttime', False)
-        slc_id = acq.get('_source', {}).get('metadata', {}).get('identifier')
-        ws4.append([acq_id, acq_st, acq_et, slc_id])
+        slc_id = acq.get('_source', {}).get('metadata', {}).get('identifier', False)
+        ipf_version = acq.get('_source', {}).get('metadata', {}).get('ip_version', False)
+        ws4.append([acq_id, acq_st, acq_et, slc_id, ipf_version])
     #all slcs
     ws5 = wb.create_sheet('Localized SLCs')
     title_row = ['slc_id', 'starttime', 'endtime']
@@ -141,7 +143,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
             if not isinstance(val, str):
                 val = json.dumps(val)
             publish_row.append(val)
-        ws8.append(publish_row) 
+        ws8.append(publish_row)
     ws9 = wb.create_sheet('Acquisition-Lists')
     title_row = ['acq-list id', 'master_scenes', 'slave_scenes', 'master_orbit_file', 'slave_orbit_file']
     ws9.append(title_row)
