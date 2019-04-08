@@ -138,6 +138,8 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
         publish_row = []
         for key in title_row:
             val = met.get(key, '')
+            if not isinstance(val, str):
+                val = json.dumps(val)
             publish_row.append(val)
         ws8.append(publish_row) 
     ws9 = wb.create_sheet('Acquisition-Lists')
