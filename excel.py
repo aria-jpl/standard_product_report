@@ -89,7 +89,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
         acq_st = acq.get('_source', {}).get('starttime', False)
         acq_et = acq.get('_source', {}).get('endttime', False)
         slc_id = acq.get('_source', {}).get('metadata', {}).get('identifier', False)
-        ipf_version = acq.get('_source', {}).get('metadata', {}).get('ip_version', False)
+        ipf_version = acq.get('_source', {}).get('metadata', {}).get('ipf_version', False)
         ws4.append([acq_id, acq_st, acq_et, slc_id, ipf_version])
     #all slcs
     ws5 = wb.create_sheet('Localized SLCs')
