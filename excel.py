@@ -29,11 +29,6 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
     ifg_cfg_dct = convert_to_hash_dict(ifg_cfgs, conversion_dict=acq_map) # converts dict where key is hash of master/slave slc ids
     ifg_dct = convert_to_hash_dict(ifgs, conversion_dict=False) # converts dict where key is hash of master/slave slc ids
     
-    print('ifg_dct length: {}'.format(len(ifg_dct.keys())))
-    
-    for key in ifg_dct.keys():
-        print(key, ifg_dct[key].get('_id'))
-
     # generate the acquisition sheet
     wb = Workbook()
     ws1 = wb.active
@@ -45,7 +40,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
     for hkey in acq_list_dct.keys():
         obj = acq_list_dct.get(hkey)
         acqlistid = obj.get('_source', {}).get('id', 'No acquisition id found')
-        slcs_are_localized = True # is_covered(obj, slc_dct) # True/False if SLCs are localized
+        slcs_are_localized = is_covered(obj, slc_dct) # True/False if SLCs are localized
         missing_acq_str = ''
         missing_slc_str = ''
         missing_slcs = get_missing_slcs(obj, acq_map, slc_dct) # get list of any missing slc ids
@@ -90,9 +85,9 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
         acq = acq_dct[key]
         acq_id = acq.get('_id', 'UNKNOWN')
         acq_st = acq.get('_source', {}).get('starttime', False)
-        acq_et = acq.get('_source', {}).get('endttime', False)
+        acq_et = acq.get('_source', {}).get('endtime', False)
         slc_id = acq.get('_source', {}).get('metadata', {}).get('identifier', False)
-        ipf_version = acq.get('_source', {}).get('metadata', {}).get('ipf_version', False)
+        ipf_version = acq.get('_source', {}).get('metadata', {}).get('processing_version', False)
         ws4.append([acq_id, acq_st, acq_et, slc_id, ipf_version])
     #all slcs
     ws5 = wb.create_sheet('Localized SLCs')
@@ -102,7 +97,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
         slc = slc_dct[key]
         slc_id = slc.get('_id', 'UNKNOWN')
         slc_st = slc.get('_source', {}).get('starttime', False)
-        slc_et = slc.get('_source', {}).get('endttime', False)
+        slc_et = slc.get('_source', {}).get('endtime', False)
         ws5.append([slc_id, slc_st, slc_et])
     #all ifg_cfgs
     ws6 = wb.create_sheet('IFG CFGs')
@@ -122,7 +117,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
         slc = ifg_dct[key]
         slc_id = slc.get('_id', 'UNKNOWN')
         slc_st = slc.get('_source', {}).get('starttime', False)
-        slc_et = slc.get('_source', {}).get('endttime', False)
+        slc_et = slc.get('_source', {}).get('endtime', False)
         #determine if the ifg-cfg and acq-list exists for the ifg
         ifg_cfg = ifg_cfg_dct.get(key, False)
         if ifg_cfg:
@@ -254,7 +249,6 @@ def convert_to_hash_dict(obj_list, conversion_dict=False):
         if conversion_dict:
             master = [conversion_dict.get(x, '') for x in master]
             slave = [conversion_dict.get(x, '') for x in slave] 
-        print(obj.get('_id'), master, slave)
         master = pickle.dumps(sorted(master))
         slave = pickle.dumps(sorted(slave))
         hsh = '{}_{}'.format(hashlib.md5(master).hexdigest(), hashlib.md5(slave).hexdigest())
@@ -263,9 +257,9 @@ def convert_to_hash_dict(obj_list, conversion_dict=False):
 
 def is_covered(obj, slc_dct):
     '''returns True if the SLCs are in slc_dct, False otherwise'''
-    master = obj.get('_source', {}).get('metadata', {}).get('master_scenes', [])
-    slave = obj.get('_source', {}).get('metadata', {}).get('slave_scenes', [])
-    slc_list = list(set(master).union(set(slave)))
+    master = get_scenes(obj, stype='master')
+    slave = get_scenes(obj, stype='slave')
+    slc_list = list(set(master + slave))
     for slc_id in slc_list:
         if slc_dct.get(slc_id, False) is False:
             return False
@@ -273,11 +267,11 @@ def is_covered(obj, slc_dct):
 
 def get_missing_slcs(obj, acq_map, slc_dct):
     '''returns the slc ids enumerated in the object that are not contained in the slc dict'''
-    master = obj.get('_source', {}).get('metadata', {}).get('master_scenes', [])
-    slave = obj.get('_source', {}).get('metadata', {}).get('slave_scenes', [])
-    acq_ids = list(set(master).union(set(slave)))
+    master = get_scenes(obj, stype='master')
+    slave = get_scenes(obj, stype='slave')
+    acq_ids = list(set(master + slave))
     #convert the acquisition ids to slc ids
-    slc_ids = [acq_map.get(x, 'id_not_found') for x in acq_ids]
+    slc_ids = [acq_map.get(x, 'slc_id_not_found') for x in acq_ids]
     #if the slc ids are not in the slc dict
     missing = []
     for slc_id in slc_ids:
@@ -328,7 +322,7 @@ def resolve_acqs_from_slcs(acqs):
         #slc_id = parse_slc_id(acq)
         slc_id = acq.get('_source', {}).get('metadata', {}).get('identifier')
         acq_id = acq.get('_source').get('id')
-        print(slc_id, ':', acq_id)
+        #print(slc_id, ':', acq_id)
         mapping_dict[slc_id] = acq_id
     return mapping_dict
         
@@ -338,7 +332,7 @@ def resolve_slcs_from_acqs(acqs):
     for acq in acqs:
         slc_id = acq.get('_source', {}).get('metadata', {}).get('identifier')
         #slc_id = parse_slc_id(acq)
-        acq_id = acq.get('_id')
+        acq_id = acq.get('_source', {}).get('id', False)
         mapping_dict[acq_id] = slc_id
-        print(acq_id, ':', slc_id)
+        #print(acq_id, ':', slc_id)
     return mapping_dict
