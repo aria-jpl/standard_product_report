@@ -11,13 +11,11 @@ import hashlib
 from openpyxl import Workbook
 import dateutil.parser
 
-def generate(aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail, enumeration=False):
+def generate(aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail, enumeration=False):
     '''ingests the various products and stages them by track for generating worksheets'''
     # unique tracks based on acquisition list
-    unique_tracks = acq_lists.keys()
-    for track in unique_tracks:
-        print('generating workbook for track {}'.format(track))
-        generate_track(track, aoi, acqs.get(track, []), slcs.get(track, []), acq_lists.get(track, []), ifg_cfgs.get(track, []), ifgs.get(track, []), audit_trail.get(track, []), enumeration)
+    print('generating workbook for track {}'.format(track))
+    generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail, enumeration)
 
 def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail, enumeration):
     '''generates excel sheet for given track, inputs are lists'''
@@ -25,11 +23,16 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
     filename = '{}_T{}.xlsx'.format(aoi.get('_id', 'AOI'), track)
     acq_dct = convert_to_dict(acqs) # converts to dict based on id
     slc_dct = convert_to_dict(slcs) # converts to dict based on id
-    acq_map = map_acqs_to_slcs(acqs) # converts acquisition ids to slc ids
-    slc_map = map_slcs_to_acqs(acqs) # converts slc ids to acq_ids
+    acq_map = resolve_slcs_from_acqs(acqs) # converts acquisition ids to slc ids
+    slc_map = resolve_acqs_from_slcs(acqs) # converts slc ids to acq_ids
     acq_list_dct = convert_to_hash_dict(acq_lists, conversion_dict=acq_map) # converts dict where key is hash of master/slave slc ids
     ifg_cfg_dct = convert_to_hash_dict(ifg_cfgs, conversion_dict=acq_map) # converts dict where key is hash of master/slave slc ids
-    ifg_dct = convert_to_hash_dict(ifgs) # converts dict where key is hash of master/slave slc ids
+    ifg_dct = convert_to_hash_dict(ifgs, conversion_dict=False) # converts dict where key is hash of master/slave slc ids
+    
+    print('ifg_dct length: {}'.format(len(ifg_dct.keys())))
+    
+    for key in ifg_dct.keys():
+        print(key, ifg_dct[key].get('_id'))
 
     # generate the acquisition sheet
     wb = Workbook()
@@ -219,16 +222,39 @@ def in_dict(hsh, dct):
         return False
     return True
 
+def get_scenes(obj, stype='master'):
+    '''returns the master/reference, or slave/secondary scene list'''
+    met = obj.get('_source', {}).get('metadata', {})
+    if stype is 'master' or stype is 'reference':
+        lst = met.get('master_scenes', [])
+        if not lst:
+            lst = met.get('reference_scenes', [])
+    if stype is 'slave' or stype is 'secondary':
+        lst = met.get('slave_scenes', [])
+        if not lst:
+            lst = met.get('secondary_scenes', [])
+    if not isinstance(lst, list):
+        raise Exception('obj not returning list type: {}'.format(obj.get('_id', False)))
+    return lst
+
 def convert_to_hash_dict(obj_list, conversion_dict=False):
     '''converts the list into a dict of objects where the keys are a hash of their master & slave slcs. if the entry
        is acquisitions, uses a conversion dict to convert to slc ids'''
     out_dict = {}
     for obj in obj_list:
-        master = obj.get('_source', {}).get('metadata', {}).get('master_scenes', [])
-        slave = obj.get('_source', {}).get('metadata', {}).get('slave_scenes', [])
+        master = get_scenes(obj, stype='master')
+        slave = get_scenes(obj, stype='slave')
+        #
+        #master = obj.get('_source', {}).get('metadata', {}).get('master_scenes', [])
+        #if not master:
+        #    master = obj.get('_source', {}).get('metadata', {}).get('reference_scenes', [])
+        #slave = obj.get('_source', {}).get('metadata', {}).get('slave_scenes', [])
+        #if not slave:
+        #    slave = obj.get('_source', {}).get('metadata', {}).get('secondary_scenes', [])
         if conversion_dict:
-            master = [conversion_dict.get(x, False) for x in master]
-            slave = [conversion_dict.get(x, False) for x in slave]
+            master = [conversion_dict.get(x, '') for x in master]
+            slave = [conversion_dict.get(x, '') for x in slave] 
+        print(obj.get('_id'), master, slave)
         master = pickle.dumps(sorted(master))
         slave = pickle.dumps(sorted(slave))
         hsh = '{}_{}'.format(hashlib.md5(master).hexdigest(), hashlib.md5(slave).hexdigest())
@@ -295,20 +321,24 @@ def parse_slc_id(obj):
         return obj.get('_source', {}).get('id')
     return 'no_id_found'
 
-def map_slcs_to_acqs(acqs):
+def resolve_acqs_from_slcs(acqs):
     '''returns a dict that takes in an SLC id and returns the associated acq id'''
     mapping_dict = {}
     for acq in acqs:
-        slc_id = parse_slc_id(acq)
+        #slc_id = parse_slc_id(acq)
+        slc_id = acq.get('_source', {}).get('metadata', {}).get('identifier')
         acq_id = acq.get('_source').get('id')
+        print(slc_id, ':', acq_id)
         mapping_dict[slc_id] = acq_id
     return mapping_dict
         
-def map_acqs_to_slcs(acqs):
+def resolve_slcs_from_acqs(acqs):
     '''returns a dict that takes in an acq id and returns the associated slc id'''
     mapping_dict = {}
     for acq in acqs:
-        slc_id = parse_slc_id(acq)
-        acq_id = acq.get('_source').get('id')
+        slc_id = acq.get('_source', {}).get('metadata', {}).get('identifier')
+        #slc_id = parse_slc_id(acq)
+        acq_id = acq.get('_id')
         mapping_dict[acq_id] = slc_id
+        print(acq_id, ':', slc_id)
     return mapping_dict

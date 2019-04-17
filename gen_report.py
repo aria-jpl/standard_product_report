@@ -9,11 +9,13 @@ import json
 import requests
 from datetime import datetime
 import dateutil.parser
+import urllib3
 #import gantt
 import coverage_chart
 import excel
 from hysds.celery import app
 
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def main():
     '''
@@ -28,28 +30,30 @@ def main():
     enumeration = ctx.get('date_pairs', False) #list of date pairs
     if enumeration:
         enumeration = validate_enumeration(enumeration)
-    acqs = sort_by_track(get_objects('acq', aoi))
-    slcs = sort_by_track(get_objects('slc', aoi))
-    acq_lists = sort_by_track(get_objects('acq-list', aoi))
-    ifg_cfgs = sort_by_track(get_objects('ifg-cfg', aoi))
-    ifgs = sort_by_track(get_objects('ifg', aoi))
-    audit_trail = sort_by_track(get_objects('audit_trail', aoi))
-    product_id = 'AOI_ops_report-{}'.format(aoi_id)
-    if enumeration:
-        product_id = 'AOI_enumeration_report-{}'.format(aoi_id)
-    print_results(acqs, slcs, acq_lists, ifg_cfgs, ifgs)
-    excel.generate(aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail, enumeration=enumeration)
+    track_acq_lists = sort_by_track(get_objects('acq-list', aoi))
+    for track in track_acq_lists.keys():
+        print('for track: {}'.format(track))
+        acqs = get_objects('acq', aoi, track)
+        acq_lists = get_objects('acq-list', aoi, track)
+        slcs = get_objects('slc', aoi, track)
+        ifg_cfgs = get_objects('ifg-cfg', aoi, track)
+        ifgs = get_objects('ifg', aoi, track)
+        audit_trail = get_objects('audit_trail', aoi, track)
+        product_id = 'AOI_ops_report-{}'.format(aoi_id)
+        if enumeration:
+            product_id = 'AOI_enumeration_report-{}'.format(aoi_id)
+        print_results(track, acqs, slcs, acq_lists, ifg_cfgs, ifgs)
+        excel.generate(aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail, enumeration=enumeration)
     
     #attempt to plot a coverage chart by track
-    try:
-        gen_coverage_plot(ifgs, aoi, 'ifgs')
-    except:
-        print('failed to generate coverage plot for ifgs')
-
-    try:
-        gen_coverage_plot(acq_lists, aoi, 'acq-lists')
-    except:
-        print('failed to generate coverage plot for acquisition lists')
+    #try:
+    #    gen_coverage_plot(ifgs, aoi, 'ifgs')
+    #except:
+    #    print('failed to generate coverage plot for ifgs')
+    #try:
+    #    gen_coverage_plot(acq_lists, aoi, 'acq-lists')
+    #except:
+    #    print('failed to generate coverage plot for acquisition lists')
 
     #test plot ifgs in a gant chart by track
     #try:
@@ -97,19 +101,12 @@ def validate_enumeration(date_pair_string):
         output_pairs.append(output_date)
     return output_pairs
 
-def print_results(acqs, slcs, acq_lists, ifg_cfgs, ifgs):
-    print_object('Acquisitions', acqs)
-    print_object('SLCs', slcs)
-    print_object('Acquisition-Lists', acq_lists)
-    print_object('IFG-CFGs', ifg_cfgs)
-    print_object('IFGs', ifgs)
-
-def print_object(name, obj_dct):
-    '''prints the count of objects by track'''
-    keys = obj_dct.keys()
-    print('-----------------------------------------\nResults for: {}'.format(name))
-    for track in keys:
-        print('Track {} count: {}'.format(track, len(obj_dct.get(track, []))))
+def print_results(track, acqs, slcs, acq_lists, ifg_cfgs, ifgs):
+    print('Track {} Acquisitions:      {}'.format(track, len(acqs)))
+    print('Track {} SLCs:              {}'.format(track, len(slcs)))
+    print('Track {} Acquisition-Lists: {}'.format(track, len(acq_lists)))
+    print('Track {} IFG-CFGs:          {}'.format(track, len(ifg_cfgs)))
+    print('Track {} IFGs:              {}'.format(track, len(ifgs)))
 
 def parse_start_end_times(obj):
     '''attempt to parse start end times from file id'''
@@ -257,7 +254,7 @@ def get_track(es_obj):
             return track
     raise Exception('unable to find track for: {}'.format(es_obj.get('_id', '')))
 
-def get_objects(object_type, aoi):
+def get_objects(object_type, aoi, track_number = False):
     '''returns all objects of the object type ['ifg, acq-list, 'ifg-blacklist'] that intersect both
     temporally and spatially with the aoi'''
     #determine index
@@ -268,7 +265,15 @@ def get_objects(object_type, aoi):
     location = aoi.get('_source', {}).get('location')
     grq_ip = app.conf['GRQ_ES_URL'].replace(':9200', '').replace('http://', 'https://')
     grq_url = '{0}/es/{1}/_search'.format(grq_ip, idx)
-    grq_query = {"query":{"filtered":{"query":{"geo_shape":{"location": {"shape":location}}},"filter":{"bool":{"must":[{"range":{"endtime":{"from":starttime}}},{"range":{"starttime":{"to":endtime}}}]}}}},"from":0,"size":1000}
+    track_field = 'track_number' 
+    if object_type == 'slc' and track_number:
+        track_field = 'trackNumber'
+    if track_number:
+        grq_query = {"query":{"filtered":{"query":{"geo_shape":{"location": {"shape":location}}},"filter":{"bool":{"must":[{"term":{"metadata.{}".format(track_field):track_number}},{"range":{"endtime":{"gte":starttime}}},{"range":{"starttime":{"lte":endtime}}}]}}}},"from":0,"size":1000}
+    else:
+        grq_query = {"query":{"filtered":{"query":{"geo_shape":{"location": {"shape":location}}},"filter":{"bool":{"must":[{"range":{"endtime":{"gte":starttime}}},{"range":{"starttime":{"lte":endtime}}}]}}}},"from":0,"size":1000}
+
+    
     results = query_es(grq_url, grq_query)
     return results
 
@@ -289,7 +294,7 @@ def query_es(grq_url, es_query):
         from_position = 0
         es_query['from'] = from_position
     #run the query and iterate until all the results have been returned
-    print('querying: {}\n{}'.format(grq_url, json.dumps(es_query)))
+    #print('querying: {}\n{}'.format(grq_url, json.dumps(es_query)))
     response = requests.post(grq_url, data=json.dumps(es_query), verify=False)
     #print('status code: {}'.format(response.status_code))
     #print('response text: {}'.format(response.text))
