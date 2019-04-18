@@ -4,14 +4,11 @@ LABEL description="Standard Product Report"
 
 USER ops
 
-#install openpyxl
-RUN pip install openpyxl
-
 # copy packages
 COPY . /home/ops/verdi/ops/standard_product_report
-RUN set -ex \
- && source /home/ops/verdi/bin/activate \
- && sudo chown -R ops:ops /home/ops/verdi/ops/standard_product_report
+
+# install requirements
+RUN ["/bin/bash", "pip", "install", "-r", "requirements.txt"]
 
 WORKDIR /home/ops
 CMD ["/bin/bash", "--login"]
