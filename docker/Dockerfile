@@ -4,9 +4,8 @@ LABEL description="Standard Product Report"
 
 USER ops
 
-#install pip and then openpyxl
-RUN sudo yum install epel-release
-RUN sudo pip3 install openpyxl
+#install openpyxl
+RUN pip install openpyxl
 
 # copy packages
 COPY . /home/ops/verdi/ops/standard_product_report
