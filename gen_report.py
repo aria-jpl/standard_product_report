@@ -227,7 +227,7 @@ def sort_by_track(es_result_list):
     '''
     Goes through the objects in the result list, and places them in an dict where key is track
     '''
-    print('found {} results'.format(len(es_result_list)))
+    #print('found {} results'.format(len(es_result_list)))
     sorted_dict = {}
     for result in es_result_list:
         track = get_track(result)

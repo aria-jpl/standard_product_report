@@ -40,10 +40,12 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
     for hkey in acq_list_dct.keys():
         obj = acq_list_dct.get(hkey)
         acqlistid = obj.get('_source', {}).get('id', 'No acquisition id found')
-        slcs_are_localized = is_covered(obj, slc_dct) # True/False if SLCs are localized
         missing_acq_str = ''
         missing_slc_str = ''
         missing_slcs = get_missing_slcs(obj, acq_map, slc_dct) # get list of any missing slc ids
+        slcs_are_localized = False
+        if not missing_slcs:
+           slcs_are_localized = True
         if len(missing_slcs) > 0:
             slcs_are_localized = False
             all_missing_slcs.extend(missing_slcs) # add to master list for later
