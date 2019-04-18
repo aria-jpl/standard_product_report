@@ -8,6 +8,7 @@ USER ops
 COPY . /home/ops/verdi/ops/standard_product_report
 
 # install requirements
+WORKDIR /home/ops/verdi/ops/standard_product_report
 RUN ["/bin/bash", "pip", "install", "-r", "requirements.txt"]
 
 WORKDIR /home/ops
