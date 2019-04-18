@@ -8,8 +8,7 @@ USER ops
 COPY . /home/ops/verdi/ops/standard_product_report
 
 # install requirements
-WORKDIR /home/ops/verdi/ops/standard_product_report
-RUN ["/bin/bash", "pip", "install", "-r", "requirements.txt"]
+RUN ["/bin/bash", "pip", "install", "openpyxl==2.6.2"]
 
 WORKDIR /home/ops
 CMD ["/bin/bash", "--login"]
