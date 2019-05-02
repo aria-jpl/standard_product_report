@@ -234,7 +234,7 @@ def get_scenes(obj, stype='master'):
         raise Exception('obj not returning list type: {}'.format(obj.get('_id', False)))
     return lst
 
-def convert_to_hash_dict(obj_list, conversion_dict=False):
+def store_by_hash(obj_list, conversion_dict=False):
     '''converts the list into a dict of objects where the keys are a hash of their master & slave slcs. if the entry
        is acquisitions, uses a conversion dict to convert to slc ids'''
     out_dict = {}
@@ -256,6 +256,32 @@ def convert_to_hash_dict(obj_list, conversion_dict=False):
         hsh = '{}_{}'.format(hashlib.md5(master).hexdigest(), hashlib.md5(slave).hexdigest())
         out_dict[hsh] = obj
     return out_dict
+
+def gen_hash(master_slcs,  slave_slcs):
+    '''generates a hash from the input master & slave slcs. Same as used in the enumerator'''
+    master_ids_str=""
+    slave_ids_str=""
+    for slc in sorted(master_slcs):
+        print("get_ifg_hash : master slc : %s" %slc)
+        if isinstance(slc, tuple) or isinstance(slc, list):
+            slc = slc[0]
+        if master_ids_str=="":
+            master_ids_str= slc
+        else:
+            master_ids_str += " "+slc
+    for slc in sorted(slave_slcs):
+        print("get_ifg_hash: slave slc : %s" %slc)
+        if isinstance(slc, tuple) or isinstance(slc, list):
+            slc = slc[0]
+        if slave_ids_str=="":
+            slave_ids_str= slc
+        else:
+            slave_ids_str += " "+slc
+    id_hash = hashlib.md5(json.dumps([
+            master_ids_str,
+            slave_ids_str
+            ]).encode("utf8")).hexdigest()
+    return id_hash
 
 def is_covered(obj, slc_dct):
     '''returns True if the SLCs are in slc_dct, False otherwise'''
