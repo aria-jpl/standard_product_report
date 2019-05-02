@@ -4,7 +4,7 @@
       "alt_match_pattern": null,
       "extractor": null,
       "level": "l1",
-      "type": "ancillary",
+      "type": "result",
       "version" : "2.0",
       "publish": {
         "s3-profile-name": "default",
@@ -29,7 +29,7 @@
       "alt_match_pattern": null,
       "extractor": null,
       "level": "l1",
-      "type": "ancillary",
+      "type": "result",
       "version" : "2.0",
       "publish": {
         "s3-profile-name": "default",
