@@ -38,6 +38,9 @@ def main():
         acqs = get_objects('acq', aoi, track)
         slcs = get_objects('slc', aoi, track)
         audit_trail = get_objects('audit_trail', aoi, track)
+        if len(audit_trail) < 1:
+            print('no audit trail products found for track {}'.format(track))
+            continue
         allowed_hashes = list(set(store_by_hash(audit_trail).keys())) #allow only hashes foud in audit-trail
         acq_lists = filter_hashes(get_objects('acq-list', aoi, track), allowed_hashes)
         ifg_cfgs = filter_hashes(get_objects('ifg-cfg', aoi, track), allowed_hashes)
