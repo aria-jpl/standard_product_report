@@ -79,7 +79,7 @@ def write_current_products(wb, acq_list_dict, ifg_cfg_dct, ifg_dct):
         ifg = ifg_dct.get(id_hash, {})
         date_pair = gen_date_pair(acq_list)
         acq_list_id = acq_list.get('_id', 'MISSING')
-        ifg_cfg_ig = ifg_cfg.get('_id', 'MISSING')
+        ifg_cfg_id = ifg_cfg.get('_id', 'MISSING')
         ifg_id = ifg.get('_id', 'MISSING')
         ws.append([date_pair, acq_list_id, ifg_cfg_id, ifg_id, id_hash])
 
