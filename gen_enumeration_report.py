@@ -227,8 +227,12 @@ def gen_date_pair(obj):
 
 def sort_into_hash_list(obj_dict):
     '''builds a list of hashes where the hashes are sorted by the objects endtime'''
-    sorted_obj = sorted(obj_dict.items(), key=lambda x: dateutil.parser.parse(x.get('_source', {}).get('endtime')))
-    return [obj.get('_source', {}).get('metadata', {}).get('full_id_hash', '') for obj in sorted_obj]
+    sorted_obj = sorted(obj_dict.keys(), key=lambda x: get_endtime(obj_dict.get(x)), reverse=True)
+    return sorted_obj#[obj.get('_source', {}).get('metadata', {}).get('full_id_hash', '') for obj in sorted_obj]
+
+def get_endtime(obj):
+    '''returns the endtime'''
+    return dateutil.parser.parse(obj.get('_source', {}).get('endtime'))
 
 def get_objects(object_type, aoi, track_number=False):
     '''returns all objects of the object type ['ifg, acq-list, 'ifg-blacklist'] that intersect both
@@ -254,11 +258,7 @@ def get_objects(object_type, aoi, track_number=False):
                      {"range":{"starttime":{"lte":endtime}}}]}}}},
                      "from":0,"size":1000}
     if object_type == 'audit_trail':
-        grq_query = {"query":{"filtered":{"query":{"geo_shape":{"location": {"shape":location}}},
-                     "filter":{"bool":{"must":[{"term":{"metadata.{}".format(track_field):track_number}},
-                     {"term":{"metadata.aoi":aoi.get('_source').get('id')}},
-                     {"range":{"endtime":{"gte":starttime}}}, {"range":{"starttime":{"lte":endtime}}}]}}}},
-                     "from":0,"size":1000}
+        grq_query = {"query":{"bool":{"must":[{"term":{"metadata.aoi.raw":aoi.get('_source').get('id')}},{"term":{"metadata.track_number": track_number}}]}},"from":0,"size":1000}
     results = query_es(grq_url, grq_query)
     return results
 

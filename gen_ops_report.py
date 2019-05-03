@@ -7,6 +7,7 @@ from __future__ import print_function
 import re
 import os
 import json
+import shutil
 import urllib3
 import hashlib
 import requests
@@ -51,17 +52,20 @@ def main():
 def generate(product_id, aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail):
     '''generates an enumeration comparison report for the given aoi & track'''
     # unique tracks based on acquisition list
+    if os.path.exists(product_id):
+        shutil.rmtree(product_id)
     os.mkdir(product_id)
     filename = '{}.xlsx'.format(product_id)
     output_path = os.path.join(product_id, filename)
     acq_dct = store_by_id(acqs)
+    acq_map_dct = store_by_slc_id(acqs)
     slc_dct = store_by_id(slcs)
     acq_list_dct = store_by_hash(acq_lists) # converts dict where key is hash of master/slave slc ids
     ifg_cfg_dct = store_by_hash(ifg_cfgs) # converts dict where key is hash of master/slave slc ids
     ifg_dct = store_by_hash(ifgs) # converts dict where key is hash of master/slave slc ids
     #create workbook
     wb = Workbook()
-    write_current_status(wb, acq_list_dct, ifg_cfg_dct, ifg_dct)
+    write_current_status(wb, acq_list_dct, ifg_cfg_dct, ifg_dct, slc_dct, acq_map_dct)
     write_slcs(wb, slc_dct)
     write_missing_slcs(wb, slc_dct, acq_lists)
     write_acqs(wb, acq_dct)
@@ -72,11 +76,11 @@ def generate(product_id, aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audi
     wb.save(output_path)
     gen_product_met(aoi, product_id, track)
 
-def write_current_status(wb, acq_list_dict, ifg_cfg_dct, ifg_dct):
+def write_current_status(wb, acq_list_dict, ifg_cfg_dct, ifg_dct, slc_dct, acq_map_dct):
     '''generate the sheet for enumerated products'''
     ws = wb.active
     ws.title = 'Current Product Status'
-    title = ['date pair', 'acquisition-list', 'ifg-cfg', 'ifg', 'hash']
+    title = ['date pair', 'acquisition-list', 'ifg-cfg', 'ifg', 'hash', 'missing_slc_ids', 'missing_acq_ids']
     ws.append(title)
     for id_hash in sort_into_hash_list(acq_list_dict):
         acq_list = acq_list_dict.get(id_hash, {})
@@ -87,7 +91,19 @@ def write_current_status(wb, acq_list_dict, ifg_cfg_dct, ifg_dct):
         acq_list_id = acq_list.get('_id', 'MISSING')
         ifg_cfg_ig = ifg_cfg.get('_id', 'MISSING')
         ifg_id = ifg.get('_id', 'MISSING')
-        ws.append([date_pair, acq_list_id, ifg_cfg_id, ifg_id, id_hash])
+        missing_slcs = []
+        missing_acqs = []
+        acq_list_slcs = acq_list.get('_source').get('metadata').get('master_scenes') + acq_list.get('_source').get('metadata').get('slave_scenes')
+        for slc_id in acq_list_slcs:
+            if not slc_dct.get(slc_id, False):
+                missing_slcs.append(slc_id)
+                missing_acq = acq_map_dct.get(slc_id, False)
+                if missing_acq:
+                    missing_acq_id = missing_acq.get('_id')
+                    missing_acqs.append(missing_acq_id)
+        missing_slc_str = ', '.join(missing_slcs)
+        missing_acq_str = ', '.join(missing_acqs) 
+        ws.append([date_pair, acq_list_id, ifg_cfg_id, ifg_id, id_hash, missing_slc_str, missing_acq_str])
 
 def write_slcs(wb, slc_dct):
     '''generates the sheet for slcs'''
@@ -114,7 +130,7 @@ def write_missing_slcs(wb, slc_dct, acq_lists):
 
 def write_acqs(wb, acq_dct):
     '''generates the sheet for acquisitions'''
-    ws = wb.create_sheet('acqs')
+    ws = wb.create_sheet('Acquisitions')
     ws.append(['acq_id', 'slc_id', 'ipf'])
     for acq_id in acq_dct.keys():
         acq = acq_dct.get(acq_id, {})
@@ -124,7 +140,7 @@ def write_acqs(wb, acq_dct):
 
 def write_acq_lists(wb, acq_list_dct):
     '''generates the sheet for acquisition lists'''
-    ws = wb.create_sheet('Acq-Lists')
+    ws = wb.create_sheet('Acquisition-Lists')
     ws.append(['acq_list_id', 'hash'])
     for hash_id in acq_list_dct.keys():
         acq_list = acq_list_dct.get(hash_id, {})
@@ -133,7 +149,7 @@ def write_acq_lists(wb, acq_list_dct):
 
 def write_ifg_cfgs(wb, ifg_cfg_dct):
     '''generates the sheet for ifg cfgs'''
-    ws = wb.create_sheet('IFG-cfgs')
+    ws = wb.create_sheet('IFG-Configs')
     ws.append(['ifg_cfg_id', 'hash'])
     for hash_id in ifg_cfg_dct.keys():
         ifg_cfg = ifg_cfg_dct.get(hash_id, {})
@@ -233,7 +249,6 @@ def sort_by_track(es_result_list):
     '''
     Goes through the objects in the result list, and places them in an dict where key is track
     '''
-    #print('found {} results'.format(len(es_result_list)))
     sorted_dict = {}
     for result in es_result_list:
         track = get_track(result)
@@ -242,6 +257,15 @@ def sort_by_track(es_result_list):
         else:
             sorted_dict[track] = [result]
     return sorted_dict
+
+def store_by_slc_id(obj_list):
+    '''returns a dict where acquisitions are stored by their slc id'''
+    result_dict = {}
+    for obj in obj_list:
+        slc_id = obj.get('_source', {}).get('metadata', {}).get('title', False)
+        if slc_id:
+            result_dict[slc_id] = obj
+    return result_dict
 
 def get_track(es_obj):
     '''returns the track from the elasticsearch object'''
@@ -276,15 +300,18 @@ def gen_date_pair(obj):
 
 def sort_into_hash_list(obj_dict):
     '''builds a list of hashes where the hashes are sorted by the objects endtime'''
-    sorted_obj = sorted(obj_dict.items(), key=lambda x: dateutil.parser.parse(x.get('_source', {}).get('endtime')))
-    return [obj.get('_source', {}).get('metadata', {}).get('full_id_hash', '') for obj in sorted_obj]
+    sorted_obj = sorted(obj_dict.keys(), key=lambda x: get_endtime(obj_dict.get(x)), reverse=True)
+    return sorted_obj#[obj.get('_source', {}).get('metadata', {}).get('full_id_hash', '') for obj in sorted_obj]
+
+def get_endtime(obj):
+    '''returns the endtime'''
+    return dateutil.parser.parse(obj.get('_source', {}).get('endtime'))
 
 def gen_hash(master_slcs, slave_slcs):
     '''copy of hash used in the enumerator'''
     master_ids_str=""
     slave_ids_str=""
     for slc in sorted(master_slcs):
-        print("get_ifg_hash : master slc : %s" %slc)
         if isinstance(slc, tuple) or isinstance(slc, list):
             slc = slc[0]
         if master_ids_str=="":
@@ -292,7 +319,6 @@ def gen_hash(master_slcs, slave_slcs):
         else:
             master_ids_str += " "+slc
     for slc in sorted(slave_slcs):
-        print("get_ifg_hash: slave slc : %s" %slc)
         if isinstance(slc, tuple) or isinstance(slc, list):
             slc = slc[0]
         if slave_ids_str=="":
@@ -329,11 +355,7 @@ def get_objects(object_type, aoi, track_number=False):
                      {"range":{"starttime":{"lte":endtime}}}]}}}},
                      "from":0,"size":1000}
     if object_type == 'audit_trail':
-        grq_query = {"query":{"filtered":{"query":{"geo_shape":{"location": {"shape":location}}},
-                     "filter":{"bool":{"must":[{"term":{"metadata.{}".format(track_field):track_number}},
-                     {"term":{"metadata.aoi":aoi.get('_source').get('id')}},
-                     {"range":{"endtime":{"gte":starttime}}}, {"range":{"starttime":{"lte":endtime}}}]}}}},
-                     "from":0,"size":1000}
+        grq_query = {"query":{"bool":{"must":[{"term":{"metadata.aoi.raw":aoi.get('_source').get('id')}},{"term":{"metadata.track_number": track_number}}]}},"from":0,"size":1000}
     results = query_es(grq_url, grq_query)
     return results
 
