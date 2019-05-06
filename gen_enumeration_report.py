@@ -256,7 +256,7 @@ def get_objects(object_type, aoi, track_number=False):
     if object_type == 'audit_trail':
         grq_query = {"query":{"filtered":{"query":{"geo_shape":{"location": {"shape":location}}},
                      "filter":{"bool":{"must":[{"term":{"metadata.{}".format(track_field):track_number}},
-                     {"term":{"metadata.aoi":aoi.get('_source').get('id')}},
+                     {"term":{"metadata.aoi.raw":aoi.get('_source').get('id')}},
                      {"range":{"endtime":{"gte":starttime}}}, {"range":{"starttime":{"lte":endtime}}}]}}}},
                      "from":0,"size":1000}
     results = query_es(grq_url, grq_query)
