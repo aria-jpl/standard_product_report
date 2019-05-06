@@ -155,7 +155,7 @@ def validate_enumeration(date_pair_string):
         if first_date < second_date:
             first_date, second_date = second_date, first_date
         output_date = '{}-{}'.format(first_date.strftime('%Y%m%d'), second_date.strftime('%Y%m%d'))
-        pair_dict[first_date] = output_date
+        pair_dict[output_date] = output_date
     for key in sorted(pair_dict.keys()):
         output_pairs.append(pair_dict.get(key))
     return output_pairs
