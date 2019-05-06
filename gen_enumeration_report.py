@@ -167,7 +167,7 @@ def filter_hashes(obj_list, allowed_hashes):
     filtered_objs = []
     for obj in obj_list:
         full_id_hash = obj.get('_source', {}).get('metadata', {}).get('full_id_hash', '')
-        if fulll_id_hash in allowed_hashes:
+        if full_id_hash in allowed_hashes:
             filtered_objs.append(obj)
     return filtered_objs
 
