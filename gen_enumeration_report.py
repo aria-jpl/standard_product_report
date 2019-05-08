@@ -219,8 +219,12 @@ def store_by_date_pair(obj_list):
 
 def gen_date_pair(obj):
     '''returns the date pair string for the input object'''
-    st = dateutil.parser.parse(obj.get('_source').get('starttime')).strftime('%Y%m%d')
-    et = dateutil.parser.parse(obj.get('_source').get('endtime')).strftime('%Y%m%d')
+    st = obj.get('_source').get('secondary_date')
+    et = obj.get('_source').get('reference_date')
+    if st > et:
+        st, et = et, st
+    st = dateutil.parser.parse(st).strftime('%Y%m%d')
+    et = dateutil.parser.parse(et).strftime('%Y%m%d')
     return '{}-{}'.format(et, st)
 
 def sort_into_hash_list(obj_dict):
