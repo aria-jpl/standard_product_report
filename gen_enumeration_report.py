@@ -219,8 +219,8 @@ def store_by_date_pair(obj_list):
 
 def gen_date_pair(obj):
     '''returns the date pair string for the input object'''
-    st = obj.get('_source').get('secondary_date', False)
-    et = obj.get('_source').get('reference_date', False)
+    st = obj.get('_source', {}).get('metadata', {}).get('secondary_date', False)
+    et = obj.get('_source', {}).get('metadata', {}).get('reference_date', False)
     if st is False:
         st = obj.get('_source').get('starttime', False)
         et = obj.get('_source').get('endtime', False)
