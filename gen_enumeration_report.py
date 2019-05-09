@@ -221,9 +221,19 @@ def gen_date_pair(obj):
     '''returns the date pair string for the input object'''
     st = obj.get('_source', {}).get('metadata', {}).get('secondary_date', False)
     et = obj.get('_source', {}).get('metadata', {}).get('reference_date', False)
-    if st is False:
+    # sometimes fields do not exist or return None. Handle all cases.
+    if st is None:
+        st = False
+    if et is None:
+        et = False
+    if (st is False) and (et is False):
         st = obj.get('_source').get('starttime', False)
         et = obj.get('_source').get('endtime', False)
+    if (st is False) or (et is False):
+        if st is False:
+            st = et
+        if et is False:
+            et = st
     if st > et:
         st, et = et, st
     st = dateutil.parser.parse(st).strftime('%Y%m%d')
