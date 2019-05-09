@@ -7,6 +7,7 @@ from __future__ import print_function
 import re
 import os
 import json
+import shutil
 import urllib3
 import requests
 from openpyxl import Workbook
@@ -49,6 +50,8 @@ def main():
 def generate(product_id, aoi, track, acq_lists, ifg_cfgs, ifgs, audit_trail, enumeration_string):
     '''generates an enumeration comparison report for the given aoi & track'''
     # unique tracks based on acquisition list
+    if os.path.exists(product_id):
+        shutil.rmtree(product_id)
     os.mkdir(product_id)
     filename = '{}.xlsx'.format(product_id)
     output_path = os.path.join(product_id, filename)
@@ -58,7 +61,7 @@ def generate(product_id, aoi, track, acq_lists, ifg_cfgs, ifgs, audit_trail, enu
     #create workbook
     wb = Workbook()
     write_current_products(wb, acq_list_dct, ifg_cfg_dct, ifg_dct)
-    write_hysds_enumerated_date_pairs(wb, acq_lists)
+    write_hysds_enumerated_date_pairs(wb, acq_list_dct)
     enumeration = validate_enumeration(enumeration_string)
     write_input_enumerated_date_pairs(wb, enumeration)
     write_enumeration_comparison(wb, acq_lists, enumeration, audit_trail)
@@ -66,37 +69,43 @@ def generate(product_id, aoi, track, acq_lists, ifg_cfgs, ifgs, audit_trail, enu
     wb.save(output_path)
     gen_product_met(aoi, product_id, track)
 
-def write_current_products(wb, acq_list_dict, ifg_cfg_dct, ifg_dct):
+def write_current_products(wb, acq_list_dct, ifg_cfg_dct, ifg_dct):
     '''generate the sheet for enumerated products'''
     ws = wb.active
     ws.title = 'Current Products'
     title = ['date pair', 'acquisition-list', 'ifg-cfg', 'ifg', 'hash']
     ws.append(title)
-    for id_hash in sort_into_hash_list(acq_list_dict):
-        acq_list = acq_list_dict.get(id_hash, {})
+    for id_hash in sort_into_hash_list(acq_list_dct):
+        acq_list = acq_list_dct.get(id_hash, {})
         ifg_cfg = ifg_cfg_dct.get(id_hash, {})
         ifg_cfg_id = ifg_cfg.get('_id', 'MISSING')
         ifg = ifg_dct.get(id_hash, {})
         date_pair = gen_date_pair(acq_list)
         acq_list_id = acq_list.get('_id', 'MISSING')
-        ifg_cfg_ig = ifg_cfg.get('_id', 'MISSING')
+        ifg_cfg_id = ifg_cfg.get('_id', 'MISSING')
         ifg_id = ifg.get('_id', 'MISSING')
         ws.append([date_pair, acq_list_id, ifg_cfg_id, ifg_id, id_hash])
 
 def write_hysds_enumerated_date_pairs(wb, acq_list_dct):
     '''writes the sheet that lists all the date pairs from the acquisition lists'''
     ws = wb.create_sheet('HySDS Enumerated Date Pairs')
-    ws.append('date pair')
+    ws.append(['date pair'])
+    date_pairs = set()
     for id_hash in sort_into_hash_list(acq_list_dct):
         date_pair = gen_date_pair(acq_list_dct.get(id_hash))
+        date_pairs.add(date_pair)
+    for date_pair in sorted(date_pairs, reverse=True):
         ws.append([date_pair])
 
 def write_input_enumerated_date_pairs(wb, enumeration):
     '''writes the sheet that lists all the date pairs from the input enumeration'''
-    ws = wb.create_sheet('HySDS Enumerated Date Pairs')
-    ws.append('date pair')
+    ws = wb.create_sheet('Input Enumerated Date Pairs')
+    ws.append(['date pair'])
+    date_pairs = set()
     for date_pair in enumeration:
-        ws.append(date_pair)
+        date_pairs.add(date_pair)
+    for date_pair in sorted(date_pairs, reverse=True):
+        ws.append([date_pair])
 
 def write_enumeration_comparison(wb, acq_list, enumeration, audit_trail):
     '''writes the sheet that shows the comparison between the hysds enumeration & input enumeration'''
@@ -104,8 +113,8 @@ def write_enumeration_comparison(wb, acq_list, enumeration, audit_trail):
     ws.append(['date pair', 'input enumeration', 'hysds enumeration', 'audit trail', 'audit comment', 'hash'])
     audit_dct = store_by_date_pair(audit_trail)
     acq_dct = store_by_date_pair(acq_list)
-    all_date_pairs = sort_date_pair_list(list(set(audit_dct.keys() + acq_dct.keys())))
-    for date_pair in all_date_pairs:
+    all_date_pairs = list(set(audit_dct.keys() + acq_dct.keys() + enumeration))
+    for date_pair in sorted(all_date_pairs, reverse=True):
         acq_list = acq_dct.get(date_pair, {})
         acq_id = acq_list.get('_id', 'MISSING')
         enum_id = 'MISSING'
@@ -115,7 +124,7 @@ def write_enumeration_comparison(wb, acq_list, enumeration, audit_trail):
         audit_trail_id = audit_trail.get('_id', 'MISSING')
         audit_comment = audit_trail.get('_source', {}).get('metadata', {}).get('failure_reason', '')
         acq_hash = acq_list.get('_source', {}).get('metadata', {}).get('full_id_hash', '')
-        ws.append(date_pair, enum_id, acq_id, audit_trail_id, audit_comment, acq_hash) 
+        ws.append([date_pair, enum_id, acq_id, audit_trail_id, audit_comment, acq_hash]) 
 
 def gen_product_met(aoi, product_id, track):
     '''generates the appropriate product json files in the product directory'''
@@ -146,21 +155,10 @@ def validate_enumeration(date_pair_string):
         if first_date < second_date:
             first_date, second_date = second_date, first_date
         output_date = '{}-{}'.format(first_date.strftime('%Y%m%d'), second_date.strftime('%Y%m%d'))
-        pair_dict[first_date] = output_date
+        pair_dict[output_date] = output_date
     for key in sorted(pair_dict.keys()):
         output_pairs.append(pair_dict.get(key))
     return output_pairs
-
-def sort_date_pair_list(date_pair_list):
-    '''sorts a list of date pair strings by the end date'''
-    date_dict = {}
-    output_list = []
-    for date in date_pair_list:
-        end_date = re.match('^([0-9]*)-', date).group(1)
-        date_dict[end_date] = date
-    for key in sorted(date_dict.keys()):
-        output_list.append(date_dict.get(key))
-    return output_list
 
 def filter_hashes(obj_list, allowed_hashes):
     '''filters out all objects in the object list that aren't storing any of the allowed hashes'''
@@ -221,14 +219,35 @@ def store_by_date_pair(obj_list):
 
 def gen_date_pair(obj):
     '''returns the date pair string for the input object'''
-    st = dateutil.parser.parse(obj.get('_source').get('starttime')).strftime('%Y%m%d')
-    et = dateutil.parser.parse(obj.get('_source').get('endtime')).strftime('%Y%m%d')
+    st = obj.get('_source', {}).get('metadata', {}).get('secondary_date', False)
+    et = obj.get('_source', {}).get('metadata', {}).get('reference_date', False)
+    # sometimes fields do not exist or return None. Handle all cases.
+    if st is None:
+        st = False
+    if et is None:
+        et = False
+    if (st is False) and (et is False):
+        st = obj.get('_source').get('starttime', False)
+        et = obj.get('_source').get('endtime', False)
+    if (st is False) or (et is False):
+        if st is False:
+            st = et
+        if et is False:
+            et = st
+    if st > et:
+        st, et = et, st
+    st = dateutil.parser.parse(st).strftime('%Y%m%d')
+    et = dateutil.parser.parse(et).strftime('%Y%m%d')
     return '{}-{}'.format(et, st)
 
 def sort_into_hash_list(obj_dict):
     '''builds a list of hashes where the hashes are sorted by the objects endtime'''
-    sorted_obj = sorted(obj_dict.items(), key=lambda x: dateutil.parser.parse(x.get('_source', {}).get('endtime')))
-    return [obj.get('_source', {}).get('metadata', {}).get('full_id_hash', '') for obj in sorted_obj]
+    sorted_obj = sorted(obj_dict.keys(), key=lambda x: get_endtime(obj_dict.get(x)), reverse=True)
+    return sorted_obj#[obj.get('_source', {}).get('metadata', {}).get('full_id_hash', '') for obj in sorted_obj]
+
+def get_endtime(obj):
+    '''returns the endtime'''
+    return dateutil.parser.parse(obj.get('_source', {}).get('endtime'))
 
 def get_objects(object_type, aoi, track_number=False):
     '''returns all objects of the object type ['ifg, acq-list, 'ifg-blacklist'] that intersect both
@@ -254,11 +273,7 @@ def get_objects(object_type, aoi, track_number=False):
                      {"range":{"starttime":{"lte":endtime}}}]}}}},
                      "from":0,"size":1000}
     if object_type == 'audit_trail':
-        grq_query = {"query":{"filtered":{"query":{"geo_shape":{"location": {"shape":location}}},
-                     "filter":{"bool":{"must":[{"term":{"metadata.{}".format(track_field):track_number}},
-                     {"term":{"metadata.aoi.raw":aoi.get('_source').get('id')}},
-                     {"range":{"endtime":{"gte":starttime}}}, {"range":{"starttime":{"lte":endtime}}}]}}}},
-                     "from":0,"size":1000}
+        grq_query = {"query":{"bool":{"must":[{"term":{"metadata.aoi.raw":aoi.get('_source').get('id')}},{"term":{"metadata.track_number": track_number}}]}},"from":0,"size":1000}
     results = query_es(grq_url, grq_query)
     return results
 
