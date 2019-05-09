@@ -9,6 +9,7 @@ import os
 import json
 import shutil
 import urllib3
+import datetime
 import requests
 from openpyxl import Workbook
 import dateutil.parser
@@ -17,7 +18,7 @@ from hysds.celery import app
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 VERSION = 'v2.0'
-PRODUCT_NAME = 'AOI_Enumeration_Report-{}-TN{}'
+PRODUCT_NAME = 'AOI_Enumeration_Report-{}-TN{}-{}-{}'
 IDX_DCT = {'audit_trail': 'grq_*_s1-gunw-acqlist-audit_trail', 'ifg':'grq_*_s1-gunw',
            'acq-list':'grq_*_s1-gunw-acq-list', 'ifg-cfg': 'grq_*_s1-gunw-ifg-cfg',
            'ifg-blacklist':'grq_*_blacklist', 'slc': 'grq_*_s1-iw_slc', 'acq': 'grq_*_acquisition-s1-iw_slc'}
@@ -44,7 +45,9 @@ def main():
         acq_lists = filter_hashes(get_objects('acq-list', aoi, track), allowed_hashes)
         ifg_cfgs = filter_hashes(get_objects('ifg-cfg', aoi, track), allowed_hashes)
         ifgs = filter_hashes(get_objects('ifg', aoi, track), allowed_hashes)
-        product_id = PRODUCT_NAME.format(aoi_id, track)
+        ifgs = filter_hashes(get_objects('ifg', aoi, track), allowed_hashes)
+        now = datetime.datetime.now().strftime('%Y%m%dT%H%M')
+        product_id = PRODUCT_NAME.format(aoi_id, track, now, VERSION)
         generate(product_id, aoi, track, acq_lists, ifg_cfgs, ifgs, audit_trail, enumeration)
 
 def generate(product_id, aoi, track, acq_lists, ifg_cfgs, ifgs, audit_trail, enumeration_string):

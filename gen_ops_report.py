@@ -10,6 +10,7 @@ import json
 import shutil
 import urllib3
 import hashlib
+import datetime
 import requests
 from openpyxl import Workbook
 import dateutil.parser
@@ -18,7 +19,7 @@ from hysds.celery import app
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 VERSION = 'v2.0'
-PRODUCT_NAME = 'AOI_Ops_Report-{}-TN{}'
+PRODUCT_NAME = 'AOI_Ops_Report-{}-TN{}-{}-{}'
 IDX_DCT = {'audit_trail': 'grq_*_s1-gunw-acqlist-audit_trail', 'ifg':'grq_*_s1-gunw',
            'acq-list':'grq_*_s1-gunw-acq-list', 'ifg-cfg': 'grq_*_s1-gunw-ifg-cfg',
            'ifg-blacklist':'grq_*_blacklist', 'slc': 'grq_*_s1-iw_slc', 'acq': 'grq_*_acquisition-s1-iw_slc'}
@@ -46,7 +47,8 @@ def main():
         acq_lists = filter_hashes(get_objects('acq-list', aoi, track), allowed_hashes)
         ifg_cfgs = filter_hashes(get_objects('ifg-cfg', aoi, track), allowed_hashes)
         ifgs = filter_hashes(get_objects('ifg', aoi, track), allowed_hashes)
-        product_id = PRODUCT_NAME.format(aoi_id, track)
+        now = datetime.datetime.now().strftime('%Y%m%dT%H%M')
+        product_id = PRODUCT_NAME.format(aoi_id, track, now, VERSION)
         generate(product_id, aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail)
 
 def generate(product_id, aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail):
@@ -355,15 +357,7 @@ def get_objects(object_type, aoi, track_number=False):
                      {"range":{"starttime":{"lte":endtime}}}]}}}},
                      "from":0,"size":1000}
     if object_type == 'audit_trail':
-<<<<<<< HEAD
-        grq_query = {"query":{"filtered":{"query":{"geo_shape":{"location": {"shape":location}}},
-                     "filter":{"bool":{"must":[{"term":{"metadata.{}".format(track_field):track_number}},
-                     {"term":{"metadata.aoi.raw":aoi.get('_source').get('id')}},
-                     {"range":{"endtime":{"gte":starttime}}}, {"range":{"starttime":{"lte":endtime}}}]}}}},
-                     "from":0,"size":1000}
-=======
         grq_query = {"query":{"bool":{"must":[{"term":{"metadata.aoi.raw":aoi.get('_source').get('id')}},{"term":{"metadata.track_number": track_number}}]}},"from":0,"size":1000}
->>>>>>> dev
     results = query_es(grq_url, grq_query)
     return results
 
