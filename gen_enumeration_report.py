@@ -244,6 +244,8 @@ def gen_hash(es_obj):
     met = es_obj.get('_source', {}).get('metadata', {})
     master_slcs = met.get('master_scenes', met.get('reference_scenes', False))
     slave_slcs = met.get('slave_scenes', met.get('secondary_scenes', False))
+    if slave_slcs is False or master_slcs is False:
+        return False
     master_ids_str = ""
     slave_ids_str = ""
     for slc in sorted(master_slcs):
