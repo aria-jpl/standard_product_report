@@ -127,7 +127,7 @@ def write_enumeration_comparison(wb, acq_list, enumeration, audit_trail):
         audit_trail = audit_dct.get(date_pair, {})
         audit_trail_id = audit_trail.get('_id', 'MISSING')
         audit_comment = audit_trail.get('_source', {}).get('metadata', {}).get('failure_reason', '')
-        acq_hash = get_hash(acq_list).get('_source', {})
+        acq_hash = get_hash(acq_list)
         ws.append([date_pair, enum_id, acq_id, audit_trail_id, audit_comment, acq_hash]) 
 
 def gen_product_met(aoi, product_id, track):
