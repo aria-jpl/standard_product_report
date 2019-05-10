@@ -9,6 +9,7 @@ import os
 import json
 import shutil
 import urllib3
+import hashlib
 import datetime
 import requests
 from openpyxl import Workbook
