@@ -45,10 +45,10 @@ def main():
         acq_lists = filter_hashes(get_objects('acq-list', aoi, track), allowed_hashes)
         ifg_cfgs = filter_hashes(get_objects('ifg-cfg', aoi, track), allowed_hashes)
         ifgs = filter_hashes(get_objects('ifg', aoi, track), allowed_hashes)
-        ifgs = filter_hashes(get_objects('ifg', aoi, track), allowed_hashes)
         now = datetime.datetime.now().strftime('%Y%m%dT%H%M')
         product_id = PRODUCT_NAME.format(aoi_id, track, now, VERSION)
         generate(product_id, aoi, track, acq_lists, ifg_cfgs, ifgs, audit_trail, enumeration)
+        print('generated product {} for track: {}'.format(product_id, track))
 
 def generate(product_id, aoi, track, acq_lists, ifg_cfgs, ifgs, audit_trail, enumeration_string):
     '''generates an enumeration comparison report for the given aoi & track'''
@@ -126,7 +126,7 @@ def write_enumeration_comparison(wb, acq_list, enumeration, audit_trail):
         audit_trail = audit_dct.get(date_pair, {})
         audit_trail_id = audit_trail.get('_id', 'MISSING')
         audit_comment = audit_trail.get('_source', {}).get('metadata', {}).get('failure_reason', '')
-        acq_hash = acq_list.get('_source', {}).get('metadata', {}).get('full_id_hash', '')
+        acq_hash = get_hash(acq_list).get('_source', {})
         ws.append([date_pair, enum_id, acq_id, audit_trail_id, audit_comment, acq_hash]) 
 
 def gen_product_met(aoi, product_id, track):
@@ -167,19 +167,29 @@ def filter_hashes(obj_list, allowed_hashes):
     '''filters out all objects in the object list that aren't storing any of the allowed hashes'''
     filtered_objs = []
     for obj in obj_list:
-        full_id_hash = obj.get('_source', {}).get('metadata', {}).get('full_id_hash', '')
+        full_id_hash = get_hash(obj)
         if full_id_hash in allowed_hashes:
             filtered_objs.append(obj)
     return filtered_objs
 
 def store_by_hash(obj_list):
-    '''returns a dict where the objects are stored by their full_id_hash'''
+    '''returns a dict where the objects are stored by their full_id_hash. drops duplicates.'''
     result_dict = {}
     for obj in obj_list:
-        full_id_hash = obj.get('_source', {}).get('metadata', {}).get('full_id_hash', '')
-        if not full_id_hash == '':
+        full_id_hash = get_hash(obj)
+        if full_id_hash in result_dict.keys():
+            result_dict[full_id_hash] = get_most_recent(obj, result_dict.get(full_id_hash))
+        else:
             result_dict[full_id_hash] = obj
     return result_dict
+
+def get_most_recent(obj1, obj2):
+    '''returns the object with the most recent ingest time'''
+    ctime1 = dateutil.parser.parse(obj1.get('_source', {}).get('creation_timestamp', False))
+    ctime2 = dateutil.parser.parse(obj2.get('_source', {}).get('creation_timestamp', False))
+    if ctime1 > ctime2:
+        return obj1
+    return obj2
 
 def sort_by_track(es_result_list):
     '''
@@ -219,6 +229,38 @@ def store_by_date_pair(obj_list):
         date_pair = gen_date_pair(obj)
         result_dict[date_pair] = obj
     return result_dict
+
+def get_hash(es_obj):
+    '''retrieves the full_id_hash. if it doesn't exists, it
+        attempts to generate one'''
+    full_id_hash = es_obj.get('_source', {}).get('metadata', {}).get('full_id_hash', False)
+    if full_id_hash:
+        return full_id_hash
+    return gen_hash(es_obj)
+
+def gen_hash(es_obj):
+    '''copy of hash used in the enumerator'''
+    met = es_obj.get('_source', {}).get('metadata', {})
+    master_slcs = met.get('master_scenes', met.get('reference_scenes', False))
+    slave_slcs = met.get('slave_scenes', met.get('secondary_scenes', False))
+    master_ids_str = ""
+    slave_ids_str = ""
+    for slc in sorted(master_slcs):
+        if isinstance(slc, tuple) or isinstance(slc, list):
+            slc = slc[0]
+        if master_ids_str == "":
+            master_ids_str = slc
+        else:
+            master_ids_str += " "+slc
+    for slc in sorted(slave_slcs):
+        if isinstance(slc, tuple) or isinstance(slc, list):
+            slc = slc[0]
+        if slave_ids_str == "":
+            slave_ids_str = slc
+        else:
+            slave_ids_str += " "+slc
+    id_hash = hashlib.md5(json.dumps([master_ids_str, slave_ids_str]).encode("utf8")).hexdigest()
+    return id_hash
 
 def gen_date_pair(obj):
     '''returns the date pair string for the input object'''

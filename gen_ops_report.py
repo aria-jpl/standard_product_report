@@ -50,6 +50,7 @@ def main():
         now = datetime.datetime.now().strftime('%Y%m%dT%H%M')
         product_id = PRODUCT_NAME.format(aoi_id, track, now, VERSION)
         generate(product_id, aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail)
+        print('generated {} for track: {}'.format(product_id, track))
 
 def generate(product_id, aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail):
     '''generates an enumeration comparison report for the given aoi & track'''
@@ -221,22 +222,32 @@ def sort_date_pair_list(date_pair_list):
     return output_list
 
 def filter_hashes(obj_list, allowed_hashes):
-    '''filters out all objects in the object list that aren't storing any of the allowed hashes'''
+    '''filters out all objects in the object list that aren't storing any of the allowed hashes.'''
     filtered_objs = []
     for obj in obj_list:
-        full_id_hash = obj.get('_source', {}).get('metadata', {}).get('full_id_hash', '')
+        full_id_hash = get_hash(obj)
         if full_id_hash in allowed_hashes:
             filtered_objs.append(obj)
     return filtered_objs
 
 def store_by_hash(obj_list):
-    '''returns a dict where the objects are stored by their full_id_hash'''
+    '''returns a dict where the objects are stored by their full_id_hash. drops duplicates.'''
     result_dict = {}
     for obj in obj_list:
-        full_id_hash = obj.get('_source', {}).get('metadata', {}).get('full_id_hash', '')
-        if not full_id_hash == '':
+        full_id_hash = get_hash(obj)
+        if full_id_hash in result_dict.keys():
+            result_dict[full_id_hash] = get_most_recent(obj, result_dict.get(full_id_hash))
+        else:
             result_dict[full_id_hash] = obj
     return result_dict
+
+def get_most_recent(obj1, obj2):
+    '''returns the object with the most recent ingest time'''
+    ctime1 = dateutil.parser.parse(obj1.get('_source', {}).get('creation_timestamp', False))
+    ctime2 = dateutil.parser.parse(obj2.get('_source', {}).get('creation_timestamp', False))
+    if ctime1 > ctime2:
+        return obj1
+    return obj2
 
 def store_by_id(obj_list):
     '''returns a dict where the objects are stored by their object id'''
@@ -309,28 +320,36 @@ def get_endtime(obj):
     '''returns the endtime'''
     return dateutil.parser.parse(obj.get('_source', {}).get('endtime'))
 
-def gen_hash(master_slcs, slave_slcs):
+def get_hash(es_obj):
+    '''retrieves the full_id_hash. if it doesn't exists, it
+        attempts to generate one'''
+    full_id_hash = es_obj.get('_source', {}).get('metadata', {}).get('full_id_hash', False)
+    if full_id_hash:
+        return full_id_hash
+    return gen_hash(es_obj)
+
+def gen_hash(es_obj):
     '''copy of hash used in the enumerator'''
-    master_ids_str=""
-    slave_ids_str=""
+    met = es_obj.get('_source', {}).get('metadata', {})
+    master_slcs = met.get('master_scenes', met.get('reference_scenes', False))
+    slave_slcs = met.get('slave_scenes', met.get('secondary_scenes', False))
+    master_ids_str = ""
+    slave_ids_str = ""
     for slc in sorted(master_slcs):
         if isinstance(slc, tuple) or isinstance(slc, list):
             slc = slc[0]
-        if master_ids_str=="":
-            master_ids_str= slc
+        if master_ids_str == "":
+            master_ids_str = slc
         else:
             master_ids_str += " "+slc
     for slc in sorted(slave_slcs):
         if isinstance(slc, tuple) or isinstance(slc, list):
             slc = slc[0]
-        if slave_ids_str=="":
-            slave_ids_str= slc
+        if slave_ids_str == "":
+            slave_ids_str = slc
         else:
             slave_ids_str += " "+slc
-    id_hash = hashlib.md5(json.dumps([
-            master_ids_str,
-            slave_ids_str
-            ]).encode("utf8")).hexdigest()
+    id_hash = hashlib.md5(json.dumps([master_ids_str, slave_ids_str]).encode("utf8")).hexdigest()
     return id_hash
 
 def get_objects(object_type, aoi, track_number=False):
