@@ -48,7 +48,7 @@ def main():
         acq_lists = filter_hashes(get_objects('acq-list', aoi, track), allowed_hashes)
         ifg_cfgs = filter_hashes(get_objects('ifg-cfg', aoi, track), allowed_hashes)
         ifgs = filter_hashes(get_objects('ifg', aoi, track), allowed_hashes)
-        aoi_tracks = get_object('aoi_track', aoi, track)
+        aoi_tracks = get_objects('aoi_track', aoi, track)
         now = datetime.datetime.now().strftime('%Y%m%dT%H%M')
         product_id = PRODUCT_NAME.format(aoi_id, track, now, VERSION)
         generate(product_id, aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail, aoi_tracks)
