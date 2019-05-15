@@ -22,7 +22,8 @@ VERSION = 'v2.0'
 PRODUCT_NAME = 'AOI_Ops_Report-{}-TN{}-{}-{}'
 IDX_DCT = {'audit_trail': 'grq_*_s1-gunw-acqlist-audit_trail', 'ifg':'grq_*_s1-gunw',
            'acq-list':'grq_*_s1-gunw-acq-list', 'ifg-cfg': 'grq_*_s1-gunw-ifg-cfg',
-           'ifg-blacklist':'grq_*_blacklist', 'slc': 'grq_*_s1-iw_slc', 'acq': 'grq_*_acquisition-s1-iw_slc'}
+           'ifg-blacklist':'grq_*_blacklist', 'slc': 'grq_*_s1-iw_slc', 'acq': 'grq_*_acquisition-s1-iw_slc',
+           'aoi_track': 'grq_*_s1-gunw-aoi_track'}
 
 def main():
     '''
@@ -47,12 +48,13 @@ def main():
         acq_lists = filter_hashes(get_objects('acq-list', aoi, track), allowed_hashes)
         ifg_cfgs = filter_hashes(get_objects('ifg-cfg', aoi, track), allowed_hashes)
         ifgs = filter_hashes(get_objects('ifg', aoi, track), allowed_hashes)
+        aoi_tracks = get_object('aoi_track', aoi, track)
         now = datetime.datetime.now().strftime('%Y%m%dT%H%M')
         product_id = PRODUCT_NAME.format(aoi_id, track, now, VERSION)
-        generate(product_id, aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail)
+        generate(product_id, aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail, aoi_tracks)
         print('generated {} for track: {}'.format(product_id, track))
 
-def generate(product_id, aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail):
+def generate(product_id, aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail, aoi_tracks):
     '''generates an enumeration comparison report for the given aoi & track'''
     # unique tracks based on acquisition list
     if os.path.exists(product_id):
@@ -66,9 +68,10 @@ def generate(product_id, aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audi
     acq_list_dct = store_by_hash(acq_lists) # converts dict where key is hash of master/slave slc ids
     ifg_cfg_dct = store_by_hash(ifg_cfgs) # converts dict where key is hash of master/slave slc ids
     ifg_dct = store_by_hash(ifgs) # converts dict where key is hash of master/slave slc ids
+    aoi_track_dct = store_by_gunw(aoi_tracks)
     #create workbook
     wb = Workbook()
-    write_current_status(wb, acq_list_dct, ifg_cfg_dct, ifg_dct, slc_dct, acq_map_dct)
+    write_current_status(wb, acq_list_dct, ifg_cfg_dct, ifg_dct, slc_dct, acq_map_dct, aoi_track_dct)
     write_slcs(wb, slc_dct)
     write_missing_slcs(wb, slc_dct, acq_lists)
     write_acqs(wb, acq_dct)
@@ -79,11 +82,11 @@ def generate(product_id, aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audi
     wb.save(output_path)
     gen_product_met(aoi, product_id, track)
 
-def write_current_status(wb, acq_list_dict, ifg_cfg_dct, ifg_dct, slc_dct, acq_map_dct):
+def write_current_status(wb, acq_list_dict, ifg_cfg_dct, ifg_dct, slc_dct, acq_map_dct, aoi_track_dct):
     '''generate the sheet for enumerated products'''
     ws = wb.active
     ws.title = 'Current Product Status'
-    title = ['date pair', 'acquisition-list', 'ifg-cfg', 'ifg', 'hash', 'missing_slc_ids', 'missing_acq_ids']
+    title = ['date pair', 'acquisition-list', 'ifg-cfg', 'ifg', 'hash', 'missing_slc_ids', 'missing_acq_ids', 'aoi_track_id']
     ws.append(title)
     for id_hash in sort_into_hash_list(acq_list_dict):
         acq_list = acq_list_dict.get(id_hash, {})
@@ -92,8 +95,8 @@ def write_current_status(wb, acq_list_dict, ifg_cfg_dct, ifg_dct, slc_dct, acq_m
         ifg = ifg_dct.get(id_hash, {})
         date_pair = gen_date_pair(acq_list)
         acq_list_id = acq_list.get('_id', 'MISSING')
-        ifg_cfg_ig = ifg_cfg.get('_id', 'MISSING')
         ifg_id = ifg.get('_id', 'MISSING')
+        aoi_track_id = aoi_track_dct.get(ifg_id, 'MISSING')
         missing_slcs = []
         missing_acqs = []
         acq_list_slcs = acq_list.get('_source').get('metadata').get('master_scenes') + acq_list.get('_source').get('metadata').get('slave_scenes')
@@ -106,7 +109,7 @@ def write_current_status(wb, acq_list_dict, ifg_cfg_dct, ifg_dct, slc_dct, acq_m
                     missing_acqs.append(missing_acq_id)
         missing_slc_str = ', '.join(missing_slcs)
         missing_acq_str = ', '.join(missing_acqs) 
-        ws.append([date_pair, acq_list_id, ifg_cfg_id, ifg_id, id_hash, missing_slc_str, missing_acq_str])
+        ws.append([date_pair, acq_list_id, ifg_cfg_id, ifg_id, id_hash, missing_slc_str, missing_acq_str, aoi_track_id])
 
 def write_slcs(wb, slc_dct):
     '''generates the sheet for slcs'''
@@ -280,6 +283,16 @@ def store_by_slc_id(obj_list):
             result_dict[slc_id] = obj
     return result_dict
 
+def store_by_gunw(obj_list):
+    '''returns a dict where the key is GUNW id and the value is the AOI_TRACK id'''
+    result_dict = {}
+    for obj in obj_list:
+        aoi_track_id = obj.get('_source', {}).get('id', False)
+        gunw_ids = obj.get('_source', {}).get('metadata', {}).get('s1-gunw-ids', [])
+        for gunw_id in gunw_ids:
+            result_dict[gunw_id] = aoi_track_id
+    return result_dict
+
 def get_track(es_obj):
     '''returns the track from the elasticsearch object'''
     es_ds = es_obj.get('_source', {})
@@ -375,8 +388,8 @@ def get_objects(object_type, aoi, track_number=False):
                      "filter":{"bool":{"must":[{"range":{"endtime":{"gte":starttime}}},
                      {"range":{"starttime":{"lte":endtime}}}]}}}},
                      "from":0,"size":1000}
-    if object_type == 'audit_trail':
-        grq_query = {"query":{"bool":{"must":[{"term":{"metadata.aoi.raw":aoi.get('_source').get('id')}},{"term":{"metadata.track_number": track_number}}]}},"from":0,"size":1000}
+    if object_type == 'audit_trail' or object_type == 'aoi_track':
+        grq_query = {"query":{"bool":{"must":[{"term":{"metadata.aoi.raw": aoi.get('_source').get('id')}},{"term":{"metadata.track_number": track_number}}]}},"from":0,"size":1000}
     results = query_es(grq_url, grq_query)
     return results
 
