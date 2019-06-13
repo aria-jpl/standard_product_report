@@ -48,6 +48,7 @@ def generate_aoi_track_report(aoi_idx, aoi_id):
     aoi = get_aoi(aoi_id, aoi_idx)
     track_acq_lists = sort_by_track(get_objects('acq-list', aoi))
 
+    html_email_template = '<div style="padding:12px;">'
     for track in track_acq_lists.keys():
         # TODO: add title header with track number for email
         acqs = get_objects('acq', aoi, track)
@@ -68,8 +69,13 @@ def generate_aoi_track_report(aoi_idx, aoi_id):
 
         now = datetime.datetime.now().strftime('%Y%m%dT%H%M')
         product_id = PRODUCT_NAME.format(aoi_id, track, now, VERSION)
-        generate(product_id, aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail, aoi_tracks)
+        aoi_track_html = generate(aoi_id, aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail, aoi_tracks)
+
+        html_email_template += aoi_track_html
         print('generated {} for track: {}'.format(product_id, track))
+
+    html_email_template += '</div>'
+    return html_email_template
 
 
 def generate(product_id, aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail, aoi_tracks):
@@ -82,65 +88,30 @@ def generate(product_id, aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audi
     ifg_dct = store_by_hash(ifgs)  # converts dict where key is hash of master/slave slc ids
     aoi_track_dct = store_by_gunw(aoi_tracks)
 
-    # generating missing SLCs html table
-    missing_slcs_table = generate_missing_slcs_table(slc_dct, acq_lists)
-    print(missing_slcs_table)
+    missing_slcs_data = generate_missing_slcs_data(slc_dct, acq_lists)  # get missing SLCs data
+    # generate data for the product status report
+    product_status_data, product_status_summary = generate_product_status_data(acq_list_dct, ifg_cfg_dct, ifg_dct,
+                                                                               slc_dct, acq_map_dct, aoi_track_dct)
 
-    # generating product report status html report
-    product_status_table = generate_product_status_table(acq_list_dct, ifg_cfg_dct, ifg_dct, slc_dct, acq_map_dct,
-                                                         aoi_track_dct)
-    print(product_status_table)
+    if len(product_status_data) == 0 and len(missing_slcs_data) == 0:
+        return ''  # returning nothing because there is nothing to report on
 
+    aoi_html_report = '<h3 style="font-family:Arial, Helvetica, sans-serif;">{track}</h3>'.format(track=product_id)
 
-def dict_to_inline_style(css_styles):
-    """
-    flattens dictionary to inline style
-    :param css_styles: obj with css styles
-    :return: str, flattened inline styles
-    """
-    inline_styles = '"'
-    for key in css_styles:
-        inline_styles += key + ':' + css_styles[key] + ';'
-    inline_styles += '"'
-    return inline_styles
+    if missing_slcs_data:
+        missing_slcs_html_table = create_html_table(['Missing SLCs'], missing_slcs_data)
+        aoi_html_report += missing_slcs_html_table
 
+    if product_status_data:
+        title = ['Date Pair', 'Acquisition-List', 'IFG-CFG', 'IFG', 'Missing SLC IDs', 'Missing ACQ IDs']
+        product_status_html_table = create_html_table(title, product_status_data, product_status_summary)
+        aoi_html_report += product_status_html_table
 
-def create_html_table_header(header):
-    style_dict = {
-        'border': '1px solid #dddddd',
-        'text-align': 'left',
-        'padding': '5px',
-        'font-size': '10px',
-        'font-family': 'Arial, Helvetica, sans-serif'
-    }
-    inline_style = dict_to_inline_style(style_dict)
-
-    html_string = '<tr>'
-    for cell in header:
-        html_string += '<th style=' + inline_style + '>' + str(cell) + '</th>'
-    html_string += '</tr>'
-    return html_string
+    # print(aoi_html_report)
+    return aoi_html_report
 
 
-def create_html_table_row(row, counter):
-    style_dict = {
-        'border': '1px solid #dddddd',
-        'text-align': 'left',
-        'padding': '5px',
-        'font-size': '10px',
-        'font-family': 'Arial, Helvetica, sans-serif'
-    }
-    html_string = '<tr>' if counter % 2 == 0 else '<tr style="background-color:#dddddd">'
-    td_style = dict_to_inline_style(style_dict)
-
-    for cell in row:
-        html_string += '<td style=' + td_style + '>' + str(cell) + '</td>'
-    html_string += '</tr>'
-
-    return html_string
-
-
-def generate_product_status_table(acq_list_dict, ifg_cfg_dct, ifg_dct, slc_dct, acq_map_dct, aoi_track_dct):
+def generate_product_status_data(acq_list_dict, ifg_cfg_dct, ifg_dct, slc_dct, acq_map_dct, aoi_track_dct):
     """
     generate the sheet for enumerated products
     :param acq_list_dict: dict type,
@@ -151,20 +122,7 @@ def generate_product_status_table(acq_list_dict, ifg_cfg_dct, ifg_dct, slc_dct, 
     :param aoi_track_dct: dict type,
     :return: html table element, <table><tr>...</tr></table>
     """
-
-    # title = ['Date Pair', 'Acquisition-List', 'IFG-CFG', 'IFG', 'hash', 'Missing SLC IDs', 'Missing ACQ IDs', 'AOI track ID']
-    title = ['Date Pair', 'Acquisition-List', 'IFG-CFG', 'IFG', 'Missing SLC IDs', 'Missing ACQ IDs']
-    table_header = create_html_table_header(title)
-    html_table_template = """
-    <table style="border-collapse:collapse;">
-        {header}
-        {rows}
-    </table>
-    """
-
-    html_rows = ''
     report_rows = []
-    counter = 0
 
     for id_hash in sort_into_hash_list(acq_list_dict):
         acq_list = acq_list_dict.get(id_hash, {})
@@ -206,31 +164,16 @@ def generate_product_status_table(acq_list_dict, ifg_cfg_dct, ifg_dct, slc_dct, 
         len(set([row[4] for row in report_rows if row[4] != ''])),
         len(set([row[5] for row in report_rows if row[5] != ''])),
     ]
-    html_rows += create_html_table_header(numerical_summary_row)
-    for row in report_rows:
-        html_rows += create_html_table_row(row, counter)
-        counter += 1
-
-    return html_table_template.format(header=table_header, rows=html_rows)
+    return report_rows, numerical_summary_row
 
 
-def generate_missing_slcs_table(slc_dct, acq_lists):
+def generate_missing_slcs_data(slc_dct, acq_lists):
     """
     generates the sheet for missing slcs
     :param slc_dct:
     :param acq_lists:
     :return: str, html string for the missing SLCs table
     """
-    table_header = create_html_table_header(['Missing SLCs'])
-
-    html_table_template = """
-    <table style="border-collapse:collapse;">
-        {table_header}
-        {rows}
-    </table>
-    """
-    rows = ''
-
     missing = []
     for acq_list in acq_lists:
         master_scenes = acq_list.get('_source', {}).get('metadata', {}).get('master_scenes', [])
@@ -242,12 +185,12 @@ def generate_missing_slcs_table(slc_dct, acq_lists):
                 missing.append(slc_id)
 
     missing = list(set(missing))
-    counter = 0
-    for slc in missing:
-        rows += create_html_table_row([slc], counter)
-        counter += 1
-
-    return html_table_template.format(table_header=table_header, rows=rows)
+    # counter = 0
+    # for slc in missing:
+    #     rows += create_html_table_row([slc], counter)
+    #     counter += 1
+    # return html_table_template.format(table_header=table_header, rows=rows)
+    return missing
 
 
 def filter_hashes(obj_list, allowed_hashes):
@@ -477,8 +420,6 @@ def query_es(grq_url, es_query):
         from_position = 0
         es_query['from'] = from_position
 
-    # pprint(es_query)
-
     response = requests.post(grq_url, data=json.dumps(es_query), verify=False)
     response.raise_for_status()
     results = json.loads(response.text, encoding='ascii')
@@ -549,6 +490,76 @@ def get_all_aois(es_index):
     return list_aoi
 
 
+def dict_to_inline_style(css_styles):
+    """
+    flattens dictionary to inline style
+    :param css_styles: obj with css styles
+    :return: str, flattened inline styles
+    """
+    inline_styles = '"'
+    for key in css_styles:
+        inline_styles += key + ':' + css_styles[key] + ';'
+    inline_styles += '"'
+    return inline_styles
+
+
+def create_html_table_header(header):
+    style_dict = {
+        'border': '1px solid #dddddd',
+        'text-align': 'left',
+        'padding': '5px',
+        'font-size': '10px',
+        'font-family': 'Arial, Helvetica, sans-serif'
+    }
+    inline_style = dict_to_inline_style(style_dict)
+
+    html_string = '<tr>'
+    for cell in header:
+        html_string += '<th style=' + inline_style + '>' + str(cell) + '</th>'
+    html_string += '</tr>'
+    return html_string
+
+
+def create_html_table_row(row, counter):
+    style_dict = {
+        'border': '1px solid #dddddd',
+        'text-align': 'left',
+        'padding': '5px',
+        'font-size': '10px',
+        'font-family': 'Arial, Helvetica, sans-serif'
+    }
+    html_string = '<tr>' if counter % 2 == 0 else '<tr style="background-color:#dddddd">'
+    td_style = dict_to_inline_style(style_dict)
+
+    for cell in row:
+        html_string += '<td style=' + td_style + '>' + str(cell) + '</td>'
+    html_string += '</tr>'
+
+    return html_string
+
+
+def create_html_table(header, data, summary_row=[]):
+    html_rows = ''
+
+    if len(data) > 0:
+        html_rows += '<table>'
+        html_rows += create_html_table_header(header)
+        if summary_row:
+            html_rows += create_html_table_header(summary_row)
+
+        counter = 1
+        for row in data:
+            row = [row] if type(row) != list else row
+            html_rows += create_html_table_row(row, counter)
+            counter += 1
+        html_rows += '</table><br>'
+    return html_rows
+
+
+def send_email():
+    pass
+
+
 if __name__ == '__main__':
     ctx = load_context()
     aoi_index = ctx.get('aoi_index', False)
@@ -560,7 +571,11 @@ if __name__ == '__main__':
 
     """
     aoi_list = get_all_aois(aoi_index)
-    pprint(aoi_list)
+    pprint(sorted(aoi_list))
 
-    for _id in aoi_list:
-        generate_aoi_track_report(aoi_index, _id)
+    complete_aoi_reports = '<div style="padding:10px;">'
+    for _id in sorted(aoi_list):
+        aoi_report_html = generate_aoi_track_report(aoi_index, _id)
+        complete_aoi_reports += aoi_report_html
+
+    print(complete_aoi_reports)
