@@ -564,6 +564,8 @@ def send_email(html_content, sender, receiver, subject):
 if __name__ == '__main__':
     ctx = load_context()
     aoi_index = ctx.get('aoi_index', False)
+    aoi_index = ','.join(list(set(aoi_index)))
+
     aoi_list = get_all_aois(aoi_index)
     print(json.dumps(sorted(aoi_list), indent=2))
 
