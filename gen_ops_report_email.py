@@ -154,11 +154,11 @@ def generate_product_status_data(acq_list_dict, ifg_cfg_dct, ifg_dct, slc_dct, a
     # creating summary row in the main product report
     numerical_summary_row = [
         'Total Missing',
-        sum(1 if row[1] == 'MISSING' or row[1] == '' else 0 for row in report_rows),
+        len(set([row[1] for row in report_rows if row[1] != ''])),
         sum(1 if row[2] == 'MISSING' or row[2] == '' else 0 for row in report_rows),
-        sum(1 if row[3] == 'MISSING' or row[3] == '' else 0 for row in report_rows),
-        len(set([row[4] for row in report_rows if row[4] != ''])),
-        len(set([row[5] for row in report_rows if row[5] != ''])),
+        len(set([row[3] for row in report_rows if row[3] != ''])),
+        sum(1 if row[4] == 'MISSING' or row[4] == '' else 0 for row in report_rows),
+        sum(1 if row[5] == 'MISSING' or row[5] == '' else 0 for row in report_rows),
     ]
     return report_rows, numerical_summary_row
 
