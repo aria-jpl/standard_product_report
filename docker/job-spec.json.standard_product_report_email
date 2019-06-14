@@ -1,5 +1,5 @@
 {
-  "command":"/home/ops/verdi/ops/standard_product_report/gen_ops_report_email.py > gen_ops_report_email.log",
+  "command":"/home/ops/verdi/ops/standard_product_report/gen_ops_report_email.py",
   "imported_worker_files": {
     "/home/ops/.netrc": "/home/ops/.netrc",
     "/home/ops/.aws": "/home/ops/.aws"
