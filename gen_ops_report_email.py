@@ -577,8 +577,6 @@ if __name__ == '__main__':
 
     current_timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     email_subject_line = 'AOI Ops Report - {}'.format(current_timestamp)
-    # email_sender = 'grfn-ops@jpl.nasa.gov'
-    # email_recipient = 'grfn-ops@jpl.nasa.gov'
-    email_sender = 'dustinlo.pcc@gmail.com'
-    email_recipient = 'hellodustinlo@gmail.com'
+    email_sender = 'grfn-ops@jpl.nasa.gov'
+    email_recipient = 'grfn-ops@jpl.nasa.gov'
     send_email(complete_aoi_reports, email_sender, email_recipient, email_subject_line)
