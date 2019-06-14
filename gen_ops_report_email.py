@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-
-"""Generates the Standard Product Ops Report"""
 from __future__ import print_function
 import re
 import os
@@ -13,8 +11,12 @@ import requests
 # from openpyxl import Workbook
 import dateutil.parser
 from hysds.celery import app
+from hysds_commons.net_utils import get_container_host_ip
 
-from pprint import pprint
+import smtplib
+
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -39,10 +41,10 @@ def generate_aoi_track_report(aoi_idx, aoi_id):
     Queries for relevant products & builds the report by track.
     :param aoi_idx, str, ES index for AOI's
     :param aoi_id: area of interest id in elasticsearch, ex. AOI_monitoring_hawaiian_chain_tn124_hawaii
-    :return: str, html with 2 tables
+    :return: str, html with consisting of 2 <table>'s
     """
 
-    if aoi_id is False or aoi_idx is False:
+    if not aoi_id or not aoi_idx:
         raise Exception('invalid inputs of aoi_id: {}, aoi_index: {}'.format(aoi_id, aoi_idx))
 
     aoi = get_aoi(aoi_id, aoi_idx)
@@ -50,7 +52,6 @@ def generate_aoi_track_report(aoi_idx, aoi_id):
 
     html_email_template = '<div style="padding:12px;">'
     for track in track_acq_lists.keys():
-        # TODO: add title header with track number for email
         acqs = get_objects('acq', aoi, track)
         slcs = get_objects('slc', aoi, track)
 
@@ -107,7 +108,6 @@ def generate(product_id, aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audi
         product_status_html_table = create_html_table(title, product_status_data, product_status_summary)
         aoi_html_report += product_status_html_table
 
-    # print(aoi_html_report)
     return aoi_html_report
 
 
@@ -120,7 +120,7 @@ def generate_product_status_data(acq_list_dict, ifg_cfg_dct, ifg_dct, slc_dct, a
     :param slc_dct: dict type,
     :param acq_map_dct: dict type,
     :param aoi_track_dct: dict type,
-    :return: html table element, <table><tr>...</tr></table>
+    :return: list[list[]], list[]  # main report data and summary row
     """
     report_rows = []
 
@@ -185,11 +185,6 @@ def generate_missing_slcs_data(slc_dct, acq_lists):
                 missing.append(slc_id)
 
     missing = list(set(missing))
-    # counter = 0
-    # for slc in missing:
-    #     rows += create_html_table_row([slc], counter)
-    #     counter += 1
-    # return html_table_template.format(table_header=table_header, rows=rows)
     return missing
 
 
@@ -319,22 +314,22 @@ def gen_hash(es_obj):
     met = es_obj.get('_source', {}).get('metadata', {})
     master_slcs = met.get('master_scenes', met.get('reference_scenes', False))
     slave_slcs = met.get('slave_scenes', met.get('secondary_scenes', False))
-    master_ids_str = ""
-    slave_ids_str = ""
+    master_ids_str = ''
+    slave_ids_str = ''
     for slc in sorted(master_slcs):
         if isinstance(slc, tuple) or isinstance(slc, list):
             slc = slc[0]
-        if master_ids_str == "":
+        if master_ids_str == '':
             master_ids_str = slc
         else:
-            master_ids_str += " " + slc
+            master_ids_str += ' ' + slc
     for slc in sorted(slave_slcs):
         if isinstance(slc, tuple) or isinstance(slc, list):
             slc = slc[0]
-        if slave_ids_str == "":
+        if slave_ids_str == '':
             slave_ids_str = slc
         else:
-            slave_ids_str += " " + slc
+            slave_ids_str += ' ' + slc
     id_hash = hashlib.md5(json.dumps([master_ids_str, slave_ids_str]).encode("utf8")).hexdigest()
     return id_hash
 
@@ -534,7 +529,6 @@ def create_html_table_row(row, counter):
     for cell in row:
         html_string += '<td style=' + td_style + '>' + str(cell) + '</td>'
     html_string += '</tr>'
-
     return html_string
 
 
@@ -556,26 +550,35 @@ def create_html_table(header, data, summary_row=[]):
     return html_rows
 
 
-def send_email():
-    pass
+def send_email(html_content, sender, receiver, subject):
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = subject
+    msg['From'] = sender
+    msg['To'] = receiver
+
+    email_message = MIMEText(html_content, 'html')
+    msg.attach(email_message)
+
+    s = smtplib.SMTP(get_container_host_ip())  # "smtp://%s:25" % get_container_host_ip()
+    s.sendmail(sender, receiver, msg.as_string())
+    print("Email sent to: {}!".format(receiver))
+    s.quit()
 
 
 if __name__ == '__main__':
     ctx = load_context()
     aoi_index = ctx.get('aoi_index', False)
-
-    """
-    TODO:
-        get all aoi records from ES, put in variable `aoi_list`
-        loop through each AOI with generate_aoi_track_report function
-
-    """
     aoi_list = get_all_aois(aoi_index)
-    pprint(sorted(aoi_list))
+    print(json.dumps(sorted(aoi_list), indent=2))
 
-    complete_aoi_reports = '<div style="padding:10px;">'
+    complete_aoi_reports = '<html> <div style="padding:10px;">'
     for _id in sorted(aoi_list):
         aoi_report_html = generate_aoi_track_report(aoi_index, _id)
         complete_aoi_reports += aoi_report_html
+    complete_aoi_reports += '</html>'
 
-    print(complete_aoi_reports)
+    current_timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    email_subject_line = 'AOI Ops Report - {}'.format(current_timestamp)
+    email_sender = '"grfn-ops@jpl.nasa.gov"'
+    email_recipient = '"grfn-ops@jpl.nasa.gov"'
+    send_email(complete_aoi_reports, email_sender, email_recipient, email_subject_line)

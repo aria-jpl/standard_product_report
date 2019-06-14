@@ -1,0 +1,10 @@
+{
+  "label": "Standard Product S1-GUNW - AOI Ops Report (Email)",
+  "enable_dedup": false,
+  "params": [
+    {
+      "name": "aoi_index",
+      "from": "dataset_jpath:_index"
+    }
+  ]
+}
