@@ -1,5 +1,6 @@
 {
   "label": "Standard Product S1-GUNW - AOI Ops Report (Email)",
+  "submission_type": "individual",
   "enable_dedup": false,
   "params": [
     {
