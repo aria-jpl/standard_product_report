@@ -1,14 +1,10 @@
 #!/usr/bin/env python
 from __future__ import print_function
-import re
-import os
 import json
-import shutil
 import urllib3
 import hashlib
 import datetime
 import requests
-# from openpyxl import Workbook
 import dateutil.parser
 from hysds.celery import app
 from hysds_commons.net_utils import get_container_host_ip
