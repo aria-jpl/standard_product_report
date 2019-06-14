@@ -100,7 +100,7 @@ def generate(product_id, aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audi
         aoi_html_report += missing_slcs_html_table
 
     if product_status_data:
-        title = ['Date Pair', 'Acquisition-List', 'IFG-CFG', 'IFG', 'Missing SLC IDs', 'Missing ACQ IDs']
+        title = ['Date Pair', 'Missing ACQ IDs', 'Acquisition-List', 'Missing SLC IDs', 'IFG-CFG', 'IFG']
         product_status_html_table = create_html_table(title, product_status_data, product_status_summary)
         aoi_html_report += product_status_html_table
 
@@ -148,7 +148,7 @@ def generate_product_status_data(acq_list_dict, ifg_cfg_dct, ifg_dct, slc_dct, a
         missing_acq_str = ', '.join(missing_acqs)
         if ifg_cfg_id == 'MISSING' or ifg_id == 'MISSING' or len(missing_acqs) > 0 or len(missing_slcs) > 0:
             # [date_pair, acq_list_id, ifg_cfg_id, ifg_id, id_hash, missing_slc_str, missing_acq_str, aoi_track_id]
-            row = [date_pair, acq_list_id, ifg_cfg_id, ifg_id, missing_slc_str, missing_acq_str]
+            row = [date_pair, missing_acq_str, acq_list_id, missing_slc_str, ifg_cfg_id, ifg_id]
             report_rows.append(row)
 
     # creating summary row in the main product report
