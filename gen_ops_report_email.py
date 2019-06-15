@@ -505,7 +505,6 @@ def create_html_table_header(header):
     html_string = '<tr>'
     for cell in header:
         html_string += '<th style=' + inline_style + '>' + str(cell) + '</th>\n'
-    html_string += '</tr>\n'
     return html_string
 
 
