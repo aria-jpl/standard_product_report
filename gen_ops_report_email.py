@@ -5,6 +5,7 @@ import urllib3
 import hashlib
 import datetime
 import requests
+import argparse
 import dateutil.parser
 from hysds.celery import app
 from hysds_commons.net_utils import get_container_host_ip
@@ -39,14 +40,13 @@ def generate_aoi_track_report(aoi_idx, aoi_id):
     :param aoi_id: area of interest id in elasticsearch, ex. AOI_monitoring_hawaiian_chain_tn124_hawaii
     :return: str, html with consisting of 2 <table>'s
     """
-
     if not aoi_id or not aoi_idx:
         raise Exception('invalid inputs of aoi_id: {}, aoi_index: {}'.format(aoi_id, aoi_idx))
 
     aoi = get_aoi(aoi_id, aoi_idx)
     track_acq_lists = sort_by_track(get_objects('acq-list', aoi))
 
-    html_email_template = '<div style="padding:12px;">'
+    html_email_template = ''
     for track in track_acq_lists.keys():
         acqs = get_objects('acq', aoi, track)
         slcs = get_objects('slc', aoi, track)
@@ -70,8 +70,6 @@ def generate_aoi_track_report(aoi_idx, aoi_id):
 
         html_email_template += aoi_track_html
         print('generated {} for track: {}'.format(product_id, track))
-
-    html_email_template += '</div>'
     return html_email_template
 
 
@@ -506,8 +504,8 @@ def create_html_table_header(header):
 
     html_string = '<tr>'
     for cell in header:
-        html_string += '<th style=' + inline_style + '>' + str(cell) + '</th>'
-    html_string += '</tr>'
+        html_string += '<th style=' + inline_style + '>' + str(cell) + '</th>\n'
+    html_string += '</tr>\n'
     return html_string
 
 
@@ -523,8 +521,8 @@ def create_html_table_row(row, counter):
     td_style = dict_to_inline_style(style_dict)
 
     for cell in row:
-        html_string += '<td style=' + td_style + '>' + str(cell) + '</td>'
-    html_string += '</tr>'
+        html_string += '<td style=' + td_style + '>' + str(cell) + '</td>\n'
+    html_string += '</tr>\n'
     return html_string
 
 
@@ -542,7 +540,7 @@ def create_html_table(header, data, summary_row=[]):
             row = [row] if type(row) != list else row
             html_rows += create_html_table_row(row, counter)
             counter += 1
-        html_rows += '</table><br>'
+        html_rows += '</table><br>\n'
     return html_rows
 
 
@@ -562,9 +560,16 @@ def send_email(html_content, sender, receiver, subject):
 
 
 if __name__ == '__main__':
-    ctx = load_context()
-    aoi_index = ctx.get('aoi_index', False)
-    aoi_index = ','.join(list(set(aoi_index)))
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--aoi_index')
+    args = parser.parse_args()
+
+    if args.aoi_index:  # aoi index as python argument
+        aoi_index = args.aoi_index
+    else:  # handles on demand job submission
+        ctx = load_context()
+        aoi_index = ctx.get('aoi_index', False)
+        aoi_index = ','.join(list(set(aoi_index)))
 
     aoi_list = get_all_aois(aoi_index)
     print(json.dumps(sorted(aoi_list), indent=2))
@@ -577,6 +582,5 @@ if __name__ == '__main__':
 
     current_timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     email_subject_line = 'AOI Ops Report - {}'.format(current_timestamp)
-    email_sender = 'grfn-ops@jpl.nasa.gov'
-    email_recipient = 'grfn-ops@jpl.nasa.gov'
+    email_sender = email_recipient = 'grfn-ops@jpl.nasa.gov'
     send_email(complete_aoi_reports, email_sender, email_recipient, email_subject_line)
