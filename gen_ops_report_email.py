@@ -116,8 +116,9 @@ def generate_product_status_data(acq_list_dict, ifg_cfg_dct, ifg_dct, slc_dct, a
     :param aoi_track_dct: dict type,
     :return: list[list[]], list[]  # main report data and summary row
     """
-    report_rows = []
+    grey_list, black_list = pull_black_and_grey_list()  # pulling black and grey lists to compare missing GUNWs to
 
+    report_rows = []
     for id_hash in sort_into_hash_list(acq_list_dict):
         acq_list = acq_list_dict.get(id_hash, {})
         ifg_cfg = ifg_cfg_dct.get(id_hash, {})
@@ -146,6 +147,10 @@ def generate_product_status_data(acq_list_dict, ifg_cfg_dct, ifg_dct, slc_dct, a
         missing_acq_str = ', '.join(missing_acqs)
         if ifg_cfg_id == 'MISSING' or ifg_id == 'MISSING' or len(missing_acqs) > 0 or len(missing_slcs) > 0:
             # [date_pair, acq_list_id, ifg_cfg_id, ifg_id, id_hash, missing_slc_str, missing_acq_str, aoi_track_id]
+            if id_hash in grey_list:
+                ifg_cfg_id = '<strong>GREYLIST</strong>'
+            elif id_hash in black_list:
+                ifg_cfg_id = '<strong>BLACKLIST</strong>'
             row = [date_pair, missing_acq_str, acq_list_id, missing_slc_str, ifg_cfg_id, ifg_id]
             report_rows.append(row)
 
@@ -159,6 +164,37 @@ def generate_product_status_data(acq_list_dict, ifg_cfg_dct, ifg_dct, slc_dct, a
         sum(1 if row[5] == 'MISSING' or row[5] == '' else 0 for row in report_rows),
     ]
     return report_rows, numerical_summary_row
+
+
+def pull_black_and_grey_list():
+    '''
+    pulling all grey and blacklist products from GRQ
+    :return: grey_list, list[str]
+             black_list: list[str]
+    '''
+    greylist_index = 'grq_*_s1-gunw-greylist'
+    blacklist_index = 'grq_*_s1-gunw-blacklist'
+
+    es_query = {
+      "fields": [
+        "metadata.full_id_hash"
+      ],
+      "query": {
+        "match_all": {}
+      }
+    }
+
+    grq_ip = app.conf['GRQ_ES_URL'].replace(':9200', '').replace('http://', 'https://')
+
+    grq_url = '{0}/es/{1}/_search'.format(grq_ip, greylist_index)
+    grey_list = query_es(grq_url, es_query)
+    grq_url = '{0}/es/{1}/_search'.format(grq_ip, blacklist_index)
+    black_list = query_es(grq_url, es_query)
+
+    black_list = {row['fields']['metadata.full_id_hash'][0] for row in black_list}
+    grey_list = {row['fields']['metadata.full_id_hash'][0] for row in grey_list}
+
+    return grey_list, black_list
 
 
 def generate_missing_slcs_data(slc_dct, acq_lists):
@@ -583,3 +619,4 @@ if __name__ == '__main__':
     email_subject_line = 'AOI Ops Report - {}'.format(current_timestamp)
     email_sender = email_recipient = 'grfn-ops@jpl.nasa.gov'
     send_email(complete_aoi_reports, email_sender, email_recipient, email_subject_line)
+    print("AOI Ops Report sent to {}!".format(email_recipient))
