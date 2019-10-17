@@ -1,4 +1,5 @@
-FROM hysds/pge-base:python2
+FROM hysds/pge-base:latest
+
 MAINTAINER jlinick "Justin.P.Linick@jpl.nasa.gov"
 LABEL description="Standard Product Report"
 
