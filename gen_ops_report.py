@@ -4,6 +4,7 @@
 Generates the Standard Product Ops Report
 '''
 from __future__ import print_function
+from builtins import range
 import re
 import os
 import json
@@ -36,7 +37,7 @@ def main():
         raise Exception('invalid inputs of aoi_id: {}, aoi_index: {}'.format(aoi_id, aoi_index))
     aoi = get_aoi(aoi_id, aoi_index)
     track_acq_lists = sort_by_track(get_objects('acq-list', aoi))
-    for track in track_acq_lists.keys():
+    for track in list(track_acq_lists.keys()):
         print('For track: {}'.format(track))
         acqs = get_objects('acq', aoi, track)
         slcs = get_objects('slc', aoi, track)
@@ -115,7 +116,7 @@ def write_slcs(wb, slc_dct):
     '''generates the sheet for slcs'''
     ws = wb.create_sheet('SLCs')
     ws.append(['slc_id'])
-    for slc_id in slc_dct.keys():
+    for slc_id in list(slc_dct.keys()):
         ws.append([slc_id])
 
 def write_missing_slcs(wb, slc_dct, acq_lists):
@@ -138,7 +139,7 @@ def write_acqs(wb, acq_dct):
     '''generates the sheet for acquisitions'''
     ws = wb.create_sheet('Acquisitions')
     ws.append(['acq_id', 'slc_id', 'ipf'])
-    for acq_id in acq_dct.keys():
+    for acq_id in list(acq_dct.keys()):
         acq = acq_dct.get(acq_id, {})
         slc_id = acq.get('_source', {}).get('metadata', {}).get('title', 'MISSING')
         ipf = acq.get('_source', {}).get('metadata', {}).get('processing_version', 'MISSING')
@@ -148,7 +149,7 @@ def write_acq_lists(wb, acq_list_dct):
     '''generates the sheet for acquisition lists'''
     ws = wb.create_sheet('Acquisition-Lists')
     ws.append(['acq_list_id', 'hash'])
-    for hash_id in acq_list_dct.keys():
+    for hash_id in list(acq_list_dct.keys()):
         acq_list = acq_list_dct.get(hash_id, {})
         acq_id = acq_list.get('_source', {}).get('id', 'MISSING')
         ws.append([acq_id, hash_id])
@@ -157,7 +158,7 @@ def write_ifg_cfgs(wb, ifg_cfg_dct):
     '''generates the sheet for ifg cfgs'''
     ws = wb.create_sheet('IFG-Configs')
     ws.append(['ifg_cfg_id', 'hash'])
-    for hash_id in ifg_cfg_dct.keys():
+    for hash_id in list(ifg_cfg_dct.keys()):
         ifg_cfg = ifg_cfg_dct.get(hash_id, {})
         ifg_cfg_id = ifg_cfg.get('_source', {}).get('id', 'MISSING')
         ws.append([ifg_cfg_id, hash_id])
@@ -166,7 +167,7 @@ def write_ifgs(wb, ifg_dct):
     '''generates the sheet for ifgs'''
     ws = wb.create_sheet('IFGs')
     ws.append(['ifg_cfg_id', 'hash'])
-    for hash_id in ifg_dct.keys():
+    for hash_id in list(ifg_dct.keys()):
         ifg = ifg_dct.get(hash_id, {})
         ifg_id = ifg.get('_source', {}).get('id', 'MISSING')
         ws.append([ifg_id, hash_id])
@@ -238,7 +239,7 @@ def store_by_hash(obj_list):
     result_dict = {}
     for obj in obj_list:
         full_id_hash = get_hash(obj)
-        if full_id_hash in result_dict.keys():
+        if full_id_hash in list(result_dict.keys()):
             result_dict[full_id_hash] = get_most_recent(obj, result_dict.get(full_id_hash))
         else:
             result_dict[full_id_hash] = obj
@@ -268,7 +269,7 @@ def sort_by_track(es_result_list):
     sorted_dict = {}
     for result in es_result_list:
         track = get_track(result)
-        if track in sorted_dict.keys():
+        if track in list(sorted_dict.keys()):
             sorted_dict.get(track, []).append(result)
         else:
             sorted_dict[track] = [result]
@@ -326,7 +327,7 @@ def gen_date_pair(obj):
 
 def sort_into_hash_list(obj_dict):
     '''builds a list of hashes where the hashes are sorted by the objects endtime'''
-    sorted_obj = sorted(obj_dict.keys(), key=lambda x: get_endtime(obj_dict.get(x)), reverse=True)
+    sorted_obj = sorted(list(obj_dict.keys()), key=lambda x: get_endtime(obj_dict.get(x)), reverse=True)
     return sorted_obj#[obj.get('_source', {}).get('metadata', {}).get('full_id_hash', '') for obj in sorted_obj]
 
 def get_endtime(obj):
@@ -399,12 +400,12 @@ def query_es(grq_url, es_query):
     all results are generated, & returns the compiled result
     '''
     # make sure the fields from & size are in the es_query
-    if 'size' in es_query.keys():
+    if 'size' in list(es_query.keys()):
         iterator_size = es_query['size']
     else:
         iterator_size = 10
         es_query['size'] = iterator_size
-    if 'from' in es_query.keys():
+    if 'from' in list(es_query.keys()):
         from_position = es_query['from']
     else:
         from_position = 0
