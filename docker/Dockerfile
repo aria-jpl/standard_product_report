@@ -6,7 +6,7 @@ LABEL description="Standard Product Report"
 USER root
 
 # install openpyxl
-RUN /home/ops/verdi/bin/pip openpyxl
+RUN /home/ops/verdi/bin/pip install openpyxl
 
 USER ops
 
