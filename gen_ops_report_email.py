@@ -147,8 +147,7 @@ def generate_product_status_data(acq_list_dict, ifg_cfg_dct, ifg_dct, slc_dct, a
 
         missing_slc_str = ', '.join(missing_slcs)
         missing_acq_str = ', '.join(missing_acqs)
-        # if ifg_cfg_id == 'MISSING' or ifg_id == 'MISSING' or len(missing_acqs) > 0 or len(missing_slcs) > 0:
-        if ifg_id == 'MISSING':
+        if ifg_cfg_id == 'MISSING' or ifg_id == 'MISSING' or len(missing_acqs) > 0 or len(missing_slcs) > 0:
             # [date_pair, acq_list_id, ifg_cfg_id, ifg_id, id_hash, missing_slc_str, missing_acq_str, aoi_track_id]
             if id_hash in grey_list:
                 ifg_id = '<strong>GREYLIST</strong>'
