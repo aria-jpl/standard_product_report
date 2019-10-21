@@ -3,6 +3,8 @@
 '''
 Generates a report for standard products covering the input AOI
 '''
+from builtins import str
+from builtins import range
 import os
 import re
 import json
@@ -31,7 +33,7 @@ def main():
     if enumeration:
         enumeration = validate_enumeration(enumeration)
     track_acq_lists = sort_by_track(get_objects('acq-list', aoi))
-    for track in track_acq_lists.keys():
+    for track in list(track_acq_lists.keys()):
         print('for track: {}'.format(track))
         acqs = get_objects('acq', aoi, track)
         acq_lists = get_objects('acq-list', aoi, track)
@@ -142,7 +144,7 @@ def sort_by_frame(obj_list):
     sorted_dict = {}
     for result in obj_list:
         frame = result.get('_source', {}).get('metadata', {}).get('frame_id')
-        if frame in sorted_dict.keys():
+        if frame in list(sorted_dict.keys()):
             sorted_dict.get(frame, []).append(result)
         else:
             sorted_dict[frame] = [result]
@@ -152,7 +154,7 @@ def plot_obj(es_obj_dict, aoi, product_name):
     aoi_name = aoi.get('_id', 'AOI_err')
     gantt_reg = '{}_{}_track_{}_chart'
     col = get_color()
-    for track in es_obj_dict.keys():
+    for track in list(es_obj_dict.keys()):
         es_obj_list = es_obj_dict.get(track, [])
         title = 'Coverage Report for {} over {}, Track {}'.format(product_name, aoi_name, track)
         gantt_filename = gantt_reg.format(aoi_name, product_name, track)
@@ -163,7 +165,7 @@ def plot_obj(es_obj_dict, aoi, product_name):
             es_frame_list = es_frame_dict.get(frame, [])
             #print('found {} ifgs for frame {}'.format(len(es_frame_list), frame))
             es_frame_list = sorted(es_frame_list, key=lambda x: parse_start_time(x))
-            color = col.next()
+            color = next(col)
             for obj in es_frame_list:
                 uid = obj.get('_id')
                 obj_name = 'F:{}, S:{}'.format(frame, obj.get('_source', {}).get('starttime', '')[0:10])
@@ -179,7 +181,7 @@ def gen_coverage_plot(es_obj_dict, aoi, product_name):
     aoi_name = aoi.get('_id', 'AOI_err')
     fn_reg = '{}_{}_track_{}_coverage-plot'
     color = 'gray'
-    for track in es_obj_dict.keys():
+    for track in list(es_obj_dict.keys()):
         es_obj_list = es_obj_dict.get(track, [])
         title = 'Coverage Plot for {} over {}, Track {}'.format(product_name, aoi_name, track)
         plot_filename = fn_reg.format(aoi_name, product_name, track)
@@ -231,7 +233,7 @@ def sort_by_track(es_result_list):
     sorted_dict = {}
     for result in es_result_list:
         track = get_track(result)
-        if track in sorted_dict.keys():
+        if track in list(sorted_dict.keys()):
             sorted_dict.get(track, []).append(result)
         else:
             sorted_dict[track] = [result]
@@ -283,12 +285,12 @@ def query_es(grq_url, es_query):
     all results are generated, & returns the compiled result
     '''
     # make sure the fields from & size are in the es_query
-    if 'size' in es_query.keys():
+    if 'size' in list(es_query.keys()):
         iterator_size = es_query['size']
     else:
         iterator_size = 10
         es_query['size'] = iterator_size
-    if 'from' in es_query.keys():
+    if 'from' in list(es_query.keys()):
         from_position = es_query['from']
     else:
         from_position = 0

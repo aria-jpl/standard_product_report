@@ -37,7 +37,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
     titlerow = ['acquisition-list id', 'slcs localized?', 'ifg-cfg generated?', 'ifg generated?', 'missing slc ids', 'missing acq ids']
     ws1.append(titlerow)
     # for each acquisition list, determine relevant metrics
-    for hkey in acq_list_dct.keys():
+    for hkey in list(acq_list_dct.keys()):
         obj = acq_list_dct.get(hkey)
         acqlistid = obj.get('_source', {}).get('id', 'No acquisition id found')
         missing_acq_str = ''
@@ -71,7 +71,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
     all_date_pairs = []
     title_row = ['expected date pairs']
     ws3.append(title_row)
-    for key in acq_list_dct.keys():
+    for key in list(acq_list_dct.keys()):
         acq_list = acq_list_dct[key]
         st = dateutil.parser.parse(acq_list.get('_source').get('starttime')).strftime('%Y%m%d')
         et = dateutil.parser.parse(acq_list.get('_source').get('endtime')).strftime('%Y%m%d')
@@ -105,7 +105,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
     ws6 = wb.create_sheet('IFG CFGs')
     title_row = ['ifg-cfg id', 'starttime', 'endtime']
     ws6.append(title_row)
-    for key in ifg_cfg_dct.keys():
+    for key in list(ifg_cfg_dct.keys()):
         slc = ifg_cfg_dct[key]
         slc_id = slc.get('_id', 'UNKNOWN')
         slc_st = slc.get('_source', {}).get('starttime', False)
@@ -115,7 +115,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
     ws7 = wb.create_sheet('IFGs')
     title_row = ['ifg id', 'starttime', 'endtime', 'acq-list', 'ifg-cfg']
     ws7.append(title_row)
-    for key in ifg_dct.keys():
+    for key in list(ifg_dct.keys()):
         slc = ifg_dct[key]
         slc_id = slc.get('_id', 'UNKNOWN')
         slc_st = slc.get('_source', {}).get('starttime', False)
@@ -131,7 +131,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
     #audit trail
     ws8 = wb.create_sheet('Audit Trail')
     #just write all keys
-    title_row = audit_trail[0].get('_source', {}).get('metadata', {}).keys()
+    title_row = list(audit_trail[0].get('_source', {}).get('metadata', {}).keys())
     for x in ['union_geojson', 'context']:
         title_row.remove(x)
     ws8.append(title_row)

@@ -3,6 +3,8 @@
 '''
 Generates a lat band chart from given information
 '''
+from builtins import range
+from builtins import object
 from dateutil import parser
 import datetime as dt
 import matplotlib
@@ -14,7 +16,7 @@ from matplotlib.dates import DAILY,WEEKLY,MONTHLY, DateFormatter, rrulewrapper, 
 import numpy as np
 import random
 
-class coverage_chart():
+class coverage_chart(object):
     def __init__(self):
         self.objects = [] #contains list of tuples: (startime, endtime, title, color)
     

@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from builtins import str
+from builtins import range
 import json
 import urllib3
 import hashlib
@@ -47,7 +49,7 @@ def generate_aoi_track_report(aoi_idx, aoi_id):
     track_acq_lists = sort_by_track(get_objects('acq-list', aoi))
 
     html_email_template = ''
-    for track in track_acq_lists.keys():
+    for track in list(track_acq_lists.keys()):
         acqs = get_objects('acq', aoi, track)
         slcs = get_objects('slc', aoi, track)
 
@@ -233,7 +235,7 @@ def store_by_hash(obj_list):
     result_dict = {}
     for obj in obj_list:
         full_id_hash = get_hash(obj)
-        if full_id_hash in result_dict.keys():
+        if full_id_hash in list(result_dict.keys()):
             result_dict[full_id_hash] = get_most_recent(obj, result_dict.get(full_id_hash))
         else:
             result_dict[full_id_hash] = obj
@@ -266,7 +268,7 @@ def sort_by_track(es_result_list):
     sorted_dict = {}
     for result in es_result_list:
         track = get_track(result)
-        if track in sorted_dict.keys():
+        if track in list(sorted_dict.keys()):
             sorted_dict.get(track, []).append(result)
         else:
             sorted_dict[track] = [result]
@@ -321,7 +323,7 @@ def gen_date_pair(obj):
 
 def sort_into_hash_list(obj_dict):
     """builds a list of hashes where the hashes are sorted by the objects endtime"""
-    sorted_obj = sorted(obj_dict.keys(), key=lambda x: get_endtime(obj_dict.get(x)), reverse=True)
+    sorted_obj = sorted(list(obj_dict.keys()), key=lambda x: get_endtime(obj_dict.get(x)), reverse=True)
     return sorted_obj  # [obj.get('_source', {}).get('metadata', {}).get('full_id_hash', '') for obj in sorted_obj]
 
 
@@ -434,12 +436,12 @@ def query_es(grq_url, es_query):
     all results are generated, & returns the compiled result
     """
     # make sure the fields from & size are in the es_query
-    if 'size' in es_query.keys():
+    if 'size' in list(es_query.keys()):
         iterator_size = es_query['size']
     else:
         iterator_size = 10
         es_query['size'] = iterator_size
-    if 'from' in es_query.keys():
+    if 'from' in list(es_query.keys()):
         from_position = es_query['from']
     else:
         from_position = 0
