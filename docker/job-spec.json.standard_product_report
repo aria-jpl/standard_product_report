@@ -1,8 +1,8 @@
 {
   "command":"/home/ops/verdi/ops/standard_product_report/gen_ops_report.py",
   "imported_worker_files": {
-    "/home/ops/.netrc": "/home/ops/.netrc",
-    "/home/ops/.aws": "/home/ops/.aws"
+    "/export/home/hysdsops/.netrc": "/home/ops/.netrc",
+    "/export/home/hysdsops/.aws": "/home/ops/.aws"
   },
   "disk_usage":"2GB",
   "recommended-queues": ["factotum-job_worker-large"],
