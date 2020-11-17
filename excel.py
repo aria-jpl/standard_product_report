@@ -34,7 +34,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
     ws1 = wb.active
     ws1.title = "Enumerated Products"
     all_missing_slcs = [] # list of missing slcs by acquisition id
-    titlerow = ['acquisition-list id', 'slcs localized?', 'ifg-cfg generated?', 'ifg generated?', 'missing slc ids', 'missing acq ids']
+    titlerow = ['acquisition-list id', 'slcs localized?', 'runconfig-topsapp generated?', 'ifg generated?', 'missing slc ids', 'missing acq ids']
     ws1.append(titlerow)
     # for each acquisition list, determine relevant metrics
     for hkey in list(acq_list_dct.keys()):
@@ -103,7 +103,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
         ws5.append([slc_id, slc_st, slc_et])
     #all ifg_cfgs
     ws6 = wb.create_sheet('IFG CFGs')
-    title_row = ['ifg-cfg id', 'starttime', 'endtime']
+    title_row = ['runconfig-topsapp id', 'starttime', 'endtime']
     ws6.append(title_row)
     for key in list(ifg_cfg_dct.keys()):
         slc = ifg_cfg_dct[key]
@@ -113,14 +113,14 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
         ws6.append([slc_id, slc_st, slc_et])
     #all ifgs
     ws7 = wb.create_sheet('IFGs')
-    title_row = ['ifg id', 'starttime', 'endtime', 'acq-list', 'ifg-cfg']
+    title_row = ['ifg id', 'starttime', 'endtime', 'acq-list', 'runconfig-topsapp']
     ws7.append(title_row)
     for key in list(ifg_dct.keys()):
         slc = ifg_dct[key]
         slc_id = slc.get('_id', 'UNKNOWN')
         slc_st = slc.get('_source', {}).get('starttime', False)
         slc_et = slc.get('_source', {}).get('endtime', False)
-        #determine if the ifg-cfg and acq-list exists for the ifg
+        #determine if the runconfig-topsapp and acq-list exists for the ifg
         ifg_cfg = ifg_cfg_dct.get(key, False)
         if ifg_cfg:
             ifg_cfg = ifg_cfg.get('_id', False)

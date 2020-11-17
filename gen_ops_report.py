@@ -21,9 +21,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 VERSION = 'v2.0'
 PRODUCT_NAME = 'AOI_Ops_Report-{}-TN{}-{}-{}'
-IDX_DCT = {'audit_trail': 'grq_*_s1-gunw-acqlist-audit_trail', 'ifg':'grq_*_s1-gunw',
-           'acq-list':'grq_*_s1-gunw-acq-list', 'ifg-cfg': 'grq_*_s1-gunw-ifg-cfg',
-           'ifg-blacklist':'grq_*_blacklist', 'slc': 'grq_*_s1-iw_slc', 'acq': 'grq_*_acquisition-s1-iw_slc',
+IDX_DCT = {'audit_trail': 'grq_*_runconfig-acqlist-audit_trail', 'ifg':'grq_*_s1-gunw',
+           'acq-list':'grq_*_runconfig-acq-list', 'runconfig-topsapp': 'grq_*_runconfig-topsapp',
+           'ifg-blacklist':'grq_*_blacklist', 'slc': 'grq_*_s1-iw_slc-local', 'acq': 'grq_*_acquisition-s1-iw_slc',
            'aoi_track': 'grq_*_s1-gunw-aoi_track'}
 
 def main():
@@ -47,7 +47,7 @@ def main():
             continue
         allowed_hashes = list(set(store_by_hash(audit_trail).keys())) #allow only hashes foud in audit-trail
         acq_lists = filter_hashes(get_objects('acq-list', aoi, track), allowed_hashes)
-        ifg_cfgs = filter_hashes(get_objects('ifg-cfg', aoi, track), allowed_hashes)
+        ifg_cfgs = filter_hashes(get_objects('runconfig-topsapp', aoi, track), allowed_hashes)
         ifgs = filter_hashes(get_objects('ifg', aoi, track), allowed_hashes)
         aoi_tracks = get_objects('aoi_track', aoi, track)
         now = datetime.datetime.now().strftime('%Y%m%dT%H%M')
@@ -87,7 +87,7 @@ def write_current_status(wb, acq_list_dict, ifg_cfg_dct, ifg_dct, slc_dct, acq_m
     '''generate the sheet for enumerated products'''
     ws = wb.active
     ws.title = 'Current Product Status'
-    title = ['date pair', 'acquisition-list', 'ifg-cfg', 'ifg', 'hash', 'missing_slc_ids', 'missing_acq_ids', 'aoi_track_id']
+    title = ['date pair', 'acquisition-list', 'runconfig-topsapp', 'ifg', 'hash', 'missing_slc_ids', 'missing_acq_ids', 'aoi_track_id']
     ws.append(title)
     for id_hash in sort_into_hash_list(acq_list_dict):
         acq_list = acq_list_dict.get(id_hash, {})
