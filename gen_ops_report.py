@@ -102,7 +102,7 @@ def write_current_status(wb, acq_list_dict, ifg_cfg_dct, ifg_dct, slc_dct, acq_m
         missing_acqs = []
         acq_list_slcs = acq_list.get('_source').get('metadata').get('master_scenes') + acq_list.get('_source').get('metadata').get('slave_scenes')
         for slc_id in acq_list_slcs:
-            if not slc_dct.get(slc_id, False):
+            if not slc_dct.get(slc_i + '-local', False):
                 missing_slcs.append(slc_id)
                 missing_acq = acq_map_dct.get(slc_id, False)
                 if missing_acq:
