@@ -339,7 +339,7 @@ def parse_slc_id(obj):
     obj_type = obj.get('_source', {}).get('dataset', False)
     if obj_type == 'acquisition-S1-IW_SLC':
         return obj.get('_source', {}).get('metadata', {}).get('identifier')
-    if obj_type == 'S1-IW_SLC':
+    if obj_type == 'S1-IW_SLC-local':
         return obj.get('_source', {}).get('id')
     return 'no_id_found'
 
