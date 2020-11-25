@@ -129,7 +129,7 @@ def write_missing_slcs(wb, slc_dct, acq_lists):
         slave_scenes = acq_list.get('_source', {}).get('metadata', {}).get('slave_scenes', [])
         all_scenes = master_scenes + slave_scenes
         for slc_id in all_scenes:
-            if slc_dct.get(slc_id, False) is False:
+            if slc_dct.get(slc_id + '-local', False) is False:
                 missing.append(slc_id)
     missing = list(set(missing))
     for slc_id in missing:
