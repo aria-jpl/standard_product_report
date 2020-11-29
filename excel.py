@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 
 '''
@@ -11,13 +12,13 @@ import hashlib
 from openpyxl import Workbook
 import dateutil.parser
 
-def generate(aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail, enumeration=False):
+def generate(aoi, track, acqs, slcs, acq_lists, runconfig_topsapps, ifgs, audit_trail, enumeration=False):
     '''ingests the various products and stages them by track for generating worksheets'''
     # unique tracks based on acquisition list
     print('generating workbook for track {}'.format(track))
-    generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail, enumeration)
+    generate_track(track, aoi, acqs, slcs, acq_lists, runconfig_topsapps, ifgs, audit_trail, enumeration)
 
-def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail, enumeration):
+def generate_track(track, aoi, acqs, slcs, acq_lists, runconfig_topsapps, ifgs, audit_trail, enumeration):
     '''generates excel sheet for given track, inputs are lists'''
     # stage products
     filename = '{}_T{}.xlsx'.format(aoi.get('_id', 'AOI'), track)
@@ -26,7 +27,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
     acq_map = resolve_slcs_from_acqs(acqs) # converts acquisition ids to slc ids
     slc_map = resolve_acqs_from_slcs(acqs) # converts slc ids to acq_ids
     acq_list_dct = convert_to_hash_dict(acq_lists, conversion_dict=acq_map) # converts dict where key is hash of master/slave slc ids
-    ifg_cfg_dct = convert_to_hash_dict(ifg_cfgs, conversion_dict=acq_map) # converts dict where key is hash of master/slave slc ids
+    runconfig_topsapp_dct = convert_to_hash_dict(runconfig_topsapps, conversion_dict=acq_map) # converts dict where key is hash of master/slave slc ids
     ifg_dct = convert_to_hash_dict(ifgs, conversion_dict=False) # converts dict where key is hash of master/slave slc ids
     
     # generate the acquisition sheet
@@ -52,7 +53,7 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
             missing_slc_str = ', '.join(missing_slcs)
             missing_acqs = [slc_map.get(x, 'id_not_found') for x in missing_slcs]
             missing_acq_str = ', '.join(missing_acqs)
-        row = [acqlistid, slcs_are_localized, in_dict(hkey, ifg_cfg_dct), in_dict(hkey, ifg_dct), missing_slc_str, missing_acq_str]
+        row = [acqlistid, slcs_are_localized, in_dict(hkey, runconfig_topsapp_dct), in_dict(hkey, ifg_dct), missing_slc_str, missing_acq_str]
         ws1.append(row)
     # generate missing slc list
     ws2 = wb.create_sheet("Missing SLCs")
@@ -101,12 +102,12 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
         slc_st = slc.get('_source', {}).get('starttime', False)
         slc_et = slc.get('_source', {}).get('endtime', False)
         ws5.append([slc_id, slc_st, slc_et])
-    #all ifg_cfgs
+    #all runconfig_topsapps
     ws6 = wb.create_sheet('IFG CFGs')
     title_row = ['runconfig-topsapp id', 'starttime', 'endtime']
     ws6.append(title_row)
-    for key in list(ifg_cfg_dct.keys()):
-        slc = ifg_cfg_dct[key]
+    for key in list(runconfig_topsapp_dct.keys()):
+        slc = runconfig_topsapp_dct[key]
         slc_id = slc.get('_id', 'UNKNOWN')
         slc_st = slc.get('_source', {}).get('starttime', False)
         slc_et = slc.get('_source', {}).get('endtime', False)
@@ -121,13 +122,13 @@ def generate_track(track, aoi, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trai
         slc_st = slc.get('_source', {}).get('starttime', False)
         slc_et = slc.get('_source', {}).get('endtime', False)
         #determine if the runconfig-topsapp and acq-list exists for the ifg
-        ifg_cfg = ifg_cfg_dct.get(key, False)
-        if ifg_cfg:
-            ifg_cfg = ifg_cfg.get('_id', False)
+        runconfig_topsapp = runconfig_topsapp_dct.get(key, False)
+        if runconfig_topsapp:
+            runconfig_topsapp = runconfig_topsapp.get('_id', False)
         acq_list = acq_list_dct.get(key, False)
         if acq_list:
             acq_list = acq_list.get('_id', False)
-        ws7.append([slc_id, slc_st, slc_et, acq_list, ifg_cfg])
+        ws7.append([slc_id, slc_st, slc_et, acq_list, runconfig_topsapp])
     #audit trail
     ws8 = wb.create_sheet('Audit Trail')
     #just write all keys

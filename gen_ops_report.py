@@ -21,10 +21,10 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 VERSION = 'v2.0'
 PRODUCT_NAME = 'AOI_Ops_Report-{}-TN{}-{}-{}'
-IDX_DCT = {'audit_trail': 'grq_*_runconfig-acqlist-audit_trail', 'ifg': 'grq_*_s1-gunw',
-           'acq-list': 'grq_*_runconfig-acq-list', 'runconfig-topsapp': 'grq_*_runconfig-topsapp',
-           'ifg-blacklist': 'grq_*_blacklist', 'slc': 'grq_*_s1-iw_slc-local', 'acq': 'grq_*_acquisition-s1-iw_slc',
-           'aoi_track': 'grq_*_s1-gunw-aoi_track'}
+IDX_DCT = {'audit_trail': 'grq_*_runconfig-acqlist-audit_trail', 'ifg':'grq_*_s1-gunw',
+           'acq-list':'grq_*_runconfig-acq-list', 'runconfig-topsapp': 'grq_*_runconfig-topsapp',
+           'ifg-blacklist':'grq_*_blacklist', 'slc': 'grq_*_s1-iw_slc-local', 
+           'acq': 'grq_*_acquisition-s1-iw_slc', 'aoi_track': 'grq_*_s1-gunw-aoi_track'}
 
 def main():
     '''
@@ -102,7 +102,7 @@ def write_current_status(wb, acq_list_dict, ifg_cfg_dct, ifg_dct, slc_dct, acq_m
         missing_acqs = []
         acq_list_slcs = acq_list.get('_source').get('metadata').get('master_scenes') + acq_list.get('_source').get('metadata').get('slave_scenes')
         for slc_id in acq_list_slcs:
-            if not slc_dct.get(slc_i + '-local', False):
+            if not slc_dct.get(slc_id, False):
                 missing_slcs.append(slc_id)
                 missing_acq = acq_map_dct.get(slc_id, False)
                 if missing_acq:
@@ -129,7 +129,7 @@ def write_missing_slcs(wb, slc_dct, acq_lists):
         slave_scenes = acq_list.get('_source', {}).get('metadata', {}).get('slave_scenes', [])
         all_scenes = master_scenes + slave_scenes
         for slc_id in all_scenes:
-            if slc_dct.get(slc_id + '-local', False) is False:
+            if slc_dct.get(slc_id, False) is False:
                 missing.append(slc_id)
     missing = list(set(missing))
     for slc_id in missing:
