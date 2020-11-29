@@ -45,7 +45,7 @@ def main():
         if len(audit_trail) < 1:
             print('no audit trail products found for track {}'.format(track))
             continue
-        allowed_hashes = list(set(store_by_hash(audit_trail).keys())) #allow only hashes foud in audit-trail
+        allowed_hashes = list(set(store_by_hash(audit_trail).keys())) #allow only hashes found in audit-trail
         acq_lists = filter_hashes(get_objects('acq-list', aoi, track), allowed_hashes)
         runconfig_topsapps = filter_hashes(get_objects('runconfig-topsapp', aoi, track), allowed_hashes)
         ifgs = filter_hashes(get_objects('ifg', aoi, track), allowed_hashes)
@@ -102,7 +102,7 @@ def write_current_status(wb, acq_list_dict, runconfig_topsapp_dct, ifg_dct, slc_
         missing_acqs = []
         acq_list_slcs = acq_list.get('_source').get('metadata').get('master_scenes') + acq_list.get('_source').get('metadata').get('slave_scenes')
         for slc_id in acq_list_slcs:
-            if not slc_dct.get(slc_id, False):
+            if not slc_dct.get(slc_id+'-local', False):
                 missing_slcs.append(slc_id)
                 missing_acq = acq_map_dct.get(slc_id, False)
                 if missing_acq:
@@ -115,7 +115,7 @@ def write_current_status(wb, acq_list_dict, runconfig_topsapp_dct, ifg_dct, slc_
 def write_slcs(wb, slc_dct):
     '''generates the sheet for slcs'''
     ws = wb.create_sheet('SLCs')
-    ws.append(['slc_id'])
+    ws.append(['slc-local_id'])
     for slc_id in list(slc_dct.keys()):
         ws.append([slc_id])
 
@@ -129,7 +129,8 @@ def write_missing_slcs(wb, slc_dct, acq_lists):
         slave_scenes = acq_list.get('_source', {}).get('metadata', {}).get('slave_scenes', [])
         all_scenes = master_scenes + slave_scenes
         for slc_id in all_scenes:
-            if slc_dct.get(slc_id, False) is False:
+            ## slc-local_id is normal slc_id + '-local' suffix
+            if slc_dct.get(slc_id+'-local', False) is False:
                 missing.append(slc_id)
     missing = list(set(missing))
     for slc_id in missing:
@@ -148,7 +149,7 @@ def write_acqs(wb, acq_dct):
 def write_acq_lists(wb, acq_list_dct):
     '''generates the sheet for acquisition lists'''
     ws = wb.create_sheet('Acquisition-Lists')
-    ws.append(['acq_list_id', 'hash'])
+    ws.append(['runconfig-acq_list_id', 'hash'])
     for hash_id in list(acq_list_dct.keys()):
         acq_list = acq_list_dct.get(hash_id, {})
         acq_id = acq_list.get('_source', {}).get('id', 'MISSING')
@@ -156,7 +157,7 @@ def write_acq_lists(wb, acq_list_dct):
 
 def write_runconfig_topsapps(wb, runconfig_topsapp_dct):
     '''generates the sheet for ifg cfgs'''
-    ws = wb.create_sheet('IFG-Configs')
+    ws = wb.create_sheet('Runconfig-Topsapps')
     ws.append(['runconfig_topsapp_id', 'hash'])
     for hash_id in list(runconfig_topsapp_dct.keys()):
         runconfig_topsapp = runconfig_topsapp_dct.get(hash_id, {})
@@ -166,7 +167,7 @@ def write_runconfig_topsapps(wb, runconfig_topsapp_dct):
 def write_ifgs(wb, ifg_dct):
     '''generates the sheet for ifgs'''
     ws = wb.create_sheet('IFGs')
-    ws.append(['runconfig_topsapp_id', 'hash'])
+    ws.append(['ifg_id', 'hash'])
     for hash_id in list(ifg_dct.keys()):
         ifg = ifg_dct.get(hash_id, {})
         ifg_id = ifg.get('_source', {}).get('id', 'MISSING')
