@@ -47,15 +47,15 @@ def main():
             continue
         allowed_hashes = list(set(store_by_hash(audit_trail).keys())) #allow only hashes foud in audit-trail
         acq_lists = filter_hashes(get_objects('acq-list', aoi, track), allowed_hashes)
-        ifg_cfgs = filter_hashes(get_objects('runconfig-topsapp', aoi, track), allowed_hashes)
+        runconfig_topsapps = filter_hashes(get_objects('runconfig-topsapp', aoi, track), allowed_hashes)
         ifgs = filter_hashes(get_objects('ifg', aoi, track), allowed_hashes)
         aoi_tracks = get_objects('aoi_track', aoi, track)
         now = datetime.datetime.now().strftime('%Y%m%dT%H%M')
         product_id = PRODUCT_NAME.format(aoi_id, track, now, VERSION)
-        generate(product_id, aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail, aoi_tracks)
+        generate(product_id, aoi, track, acqs, slcs, acq_lists, runconfig_topsapps, ifgs, audit_trail, aoi_tracks)
         print('generated {} for track: {}'.format(product_id, track))
 
-def generate(product_id, aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audit_trail, aoi_tracks):
+def generate(product_id, aoi, track, acqs, slcs, acq_lists, runconfig_topsapps, ifgs, audit_trail, aoi_tracks):
     '''generates an enumeration comparison report for the given aoi & track'''
     # unique tracks based on acquisition list
     if os.path.exists(product_id):
@@ -67,23 +67,23 @@ def generate(product_id, aoi, track, acqs, slcs, acq_lists, ifg_cfgs, ifgs, audi
     acq_map_dct = store_by_slc_id(acqs)
     slc_dct = store_by_id(slcs)
     acq_list_dct = store_by_hash(acq_lists) # converts dict where key is hash of master/slave slc ids
-    ifg_cfg_dct = store_by_hash(ifg_cfgs) # converts dict where key is hash of master/slave slc ids
+    runconfig_topsapp_dct = store_by_hash(runconfig_topsapps) # converts dict where key is hash of master/slave slc ids
     ifg_dct = store_by_hash(ifgs) # converts dict where key is hash of master/slave slc ids
     aoi_track_dct = store_by_gunw(aoi_tracks)
     #create workbook
     wb = Workbook()
-    write_current_status(wb, acq_list_dct, ifg_cfg_dct, ifg_dct, slc_dct, acq_map_dct, aoi_track_dct)
+    write_current_status(wb, acq_list_dct, runconfig_topsapp_dct, ifg_dct, slc_dct, acq_map_dct, aoi_track_dct)
     write_slcs(wb, slc_dct)
     write_missing_slcs(wb, slc_dct, acq_lists)
     write_acqs(wb, acq_dct)
     write_acq_lists(wb, acq_list_dct)
-    write_ifg_cfgs(wb, ifg_cfg_dct)
+    write_runconfig_topsapps(wb, runconfig_topsapp_dct)
     write_ifgs(wb, ifg_dct)
     #save output 
     wb.save(output_path)
     gen_product_met(aoi, product_id, track)
 
-def write_current_status(wb, acq_list_dict, ifg_cfg_dct, ifg_dct, slc_dct, acq_map_dct, aoi_track_dct):
+def write_current_status(wb, acq_list_dict, runconfig_topsapp_dct, ifg_dct, slc_dct, acq_map_dct, aoi_track_dct):
     '''generate the sheet for enumerated products'''
     ws = wb.active
     ws.title = 'Current Product Status'
@@ -91,8 +91,8 @@ def write_current_status(wb, acq_list_dict, ifg_cfg_dct, ifg_dct, slc_dct, acq_m
     ws.append(title)
     for id_hash in sort_into_hash_list(acq_list_dict):
         acq_list = acq_list_dict.get(id_hash, {})
-        ifg_cfg = ifg_cfg_dct.get(id_hash, {})
-        ifg_cfg_id = ifg_cfg.get('_id', 'MISSING')
+        runconfig_topsapp = runconfig_topsapp_dct.get(id_hash, {})
+        runconfig_topsapp_id = runconfig_topsapp.get('_id', 'MISSING')
         ifg = ifg_dct.get(id_hash, {})
         date_pair = gen_date_pair(acq_list)
         acq_list_id = acq_list.get('_id', 'MISSING')
@@ -110,7 +110,7 @@ def write_current_status(wb, acq_list_dict, ifg_cfg_dct, ifg_dct, slc_dct, acq_m
                     missing_acqs.append(missing_acq_id)
         missing_slc_str = ', '.join(missing_slcs)
         missing_acq_str = ', '.join(missing_acqs) 
-        ws.append([date_pair, acq_list_id, ifg_cfg_id, ifg_id, id_hash, missing_slc_str, missing_acq_str, aoi_track_id])
+        ws.append([date_pair, acq_list_id, runconfig_topsapp_id, ifg_id, id_hash, missing_slc_str, missing_acq_str, aoi_track_id])
 
 def write_slcs(wb, slc_dct):
     '''generates the sheet for slcs'''
@@ -154,19 +154,19 @@ def write_acq_lists(wb, acq_list_dct):
         acq_id = acq_list.get('_source', {}).get('id', 'MISSING')
         ws.append([acq_id, hash_id])
 
-def write_ifg_cfgs(wb, ifg_cfg_dct):
+def write_runconfig_topsapps(wb, runconfig_topsapp_dct):
     '''generates the sheet for ifg cfgs'''
     ws = wb.create_sheet('IFG-Configs')
-    ws.append(['ifg_cfg_id', 'hash'])
-    for hash_id in list(ifg_cfg_dct.keys()):
-        ifg_cfg = ifg_cfg_dct.get(hash_id, {})
-        ifg_cfg_id = ifg_cfg.get('_source', {}).get('id', 'MISSING')
-        ws.append([ifg_cfg_id, hash_id])
+    ws.append(['runconfig_topsapp_id', 'hash'])
+    for hash_id in list(runconfig_topsapp_dct.keys()):
+        runconfig_topsapp = runconfig_topsapp_dct.get(hash_id, {})
+        runconfig_topsapp_id = runconfig_topsapp.get('_source', {}).get('id', 'MISSING')
+        ws.append([runconfig_topsapp_id, hash_id])
 
 def write_ifgs(wb, ifg_dct):
     '''generates the sheet for ifgs'''
     ws = wb.create_sheet('IFGs')
-    ws.append(['ifg_cfg_id', 'hash'])
+    ws.append(['runconfig_topsapp_id', 'hash'])
     for hash_id in list(ifg_dct.keys()):
         ifg = ifg_dct.get(hash_id, {})
         ifg_id = ifg.get('_source', {}).get('id', 'MISSING')
