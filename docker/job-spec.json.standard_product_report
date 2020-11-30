@@ -10,11 +10,11 @@
   "time_limit": 2800,
   "params" : [
   {
-    "name": "aoi_index",
+    "name": "request_index",
     "destination": "context"
   },
   {
-    "name": "aoi_id",
+    "name": "request_id",
     "destination": "context"
   }
   ]

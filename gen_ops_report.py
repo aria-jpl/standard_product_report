@@ -27,7 +27,7 @@ IDX_DCT = {'audit_trail': 'grq_*_runconfig-acqlist-audit_trail', 'ifg':'grq_*_s1
            'acq': 'grq_*_acquisition-s1-iw_slc', 'aoi_track': 'grq_*_s1-gunw-aoi_track'}
 
 def main():
-    '''
+    ''' 
     Queries for relevant products & builds the report by track.
     '''
     ctx = load_context()
@@ -403,7 +403,7 @@ def query_es(grq_url, es_query):
     # make sure the fields from & size are in the es_query
     if 'size' in list(es_query.keys()):
         iterator_size = es_query['size']
-    else:
+    else:  
         iterator_size = 10
         es_query['size'] = iterator_size
     if 'from' in list(es_query.keys()):
@@ -429,6 +429,18 @@ def query_es(grq_url, es_query):
         results_list.extend(results.get('hits', {}).get('hits', []))
     return results_list
 
+def get_request_id(request_id, request_index):
+    '''
+    retrieves request-submit from ES
+    '''
+    grq_ip = app.conf['GRQ_ES_URL'].replace(':9200', '').replace('http://', 'https://')
+    grq_url = '{0}/es/{1}/_search'.format(grq_ip, request_index)
+    es_query = {"query":{"bool":{"must":[{"term":{"id.raw":request_id}}]}}}
+    result = query_es(grq_url, es_query)
+    if len(result) < 1:
+        raise Exception('Found no results for Request-Submit: {}'.format(request_id))
+    return result[0]
+
 def get_aoi(aoi_id, aoi_index):
     '''
     retrieves the AOI from ES
@@ -453,4 +465,12 @@ def load_context():
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    conext = load_context()
+    request_id = ctx.get('request_id', False)
+    request_index = ctx.get('request_index', False)
+    if request_id is False or request_index is False:
+        raise Exception('invalid inputs of request_id: {}, request_index: {}'.format(request_id, request_index))
+    request = get_request(request_id, request_index)
+    print(request)
+
