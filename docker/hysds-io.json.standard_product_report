@@ -1,5 +1,5 @@
 {
-    "label": "Request S1-GUNW - AOI Ops Report",
+    "label": "Request S1-GUNW - Ops Report",
     "submission_type": "iteration",
     "enable_dedup": false,
     "params" : [

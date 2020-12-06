@@ -31,32 +31,32 @@ def main():
     Queries for relevant products & builds the report by track.
     '''
     ctx = load_context()
-    aoi_id = ctx.get('aoi_id', False)
-    aoi_index = ctx.get('aoi_index', False)
-    if aoi_id is False or aoi_index is False:
-        raise Exception('invalid inputs of aoi_id: {}, aoi_index: {}'.format(aoi_id, aoi_index))
-    aoi = get_aoi(aoi_id, aoi_index)
-    track_acq_lists = sort_by_track(get_objects('acq-list', aoi))
+    request_id = ctx.get('request_id', False)
+    request_index = ctx.get('request_index', False)
+    if request_id is False or request_index is False:
+        raise Exception('invalid inputs of request_id: {}, request_index: {}'.format(request_id, request_index))
+    request = get_request(request_id, request_index)
+    track_acq_lists = sort_by_track(get_objects('acq-list', request))
     for track in list(track_acq_lists.keys()):
         print('For track: {}'.format(track))
-        acqs = get_objects('acq', aoi, track)
-        slcs = get_objects('slc', aoi, track)
-        audit_trail = get_objects('audit_trail', aoi, track)
+        acqs = get_objects('acq', request, track)
+        slcs = get_objects('slc', request, track)
+        audit_trail = get_objects('audit_trail', request, track)
         if len(audit_trail) < 1:
             print('no audit trail products found for track {}'.format(track))
             continue
         allowed_hashes = list(set(store_by_hash(audit_trail).keys())) #allow only hashes found in audit-trail
-        acq_lists = filter_hashes(get_objects('acq-list', aoi, track), allowed_hashes)
-        runconfig_topsapps = filter_hashes(get_objects('runconfig-topsapp', aoi, track), allowed_hashes)
-        ifgs = filter_hashes(get_objects('ifg', aoi, track), allowed_hashes)
-        aoi_tracks = get_objects('aoi_track', aoi, track)
+        acq_lists = filter_hashes(get_objects('acq-list', request, track), allowed_hashes)
+        runconfig_topsapps = filter_hashes(get_objects('runconfig-topsapp', request, track), allowed_hashes)
+        ifgs = filter_hashes(get_objects('ifg', request, track), allowed_hashes)
+        aoi_tracks = get_objects('aoi_track', request, track)
         now = datetime.datetime.now().strftime('%Y%m%dT%H%M')
-        product_id = PRODUCT_NAME.format(aoi_id, track, now, VERSION)
-        generate(product_id, aoi, track, acqs, slcs, acq_lists, runconfig_topsapps, ifgs, audit_trail, aoi_tracks)
+        product_id = PRODUCT_NAME.format(request_id, track, now, VERSION)
+        generate(product_id, request, track, acqs, slcs, acq_lists, runconfig_topsapps, ifgs, audit_trail, aoi_tracks)
         print('generated {} for track: {}'.format(product_id, track))
 
-def generate(product_id, aoi, track, acqs, slcs, acq_lists, runconfig_topsapps, ifgs, audit_trail, aoi_tracks):
-    '''generates an enumeration comparison report for the given aoi & track'''
+def generate(product_id, request, track, acqs, slcs, acq_lists, runconfig_topsapps, ifgs, audit_trail, aoi_tracks):
+    '''generates an enumeration comparison report for the given request & track'''
     # unique tracks based on acquisition list
     if os.path.exists(product_id):
         shutil.rmtree(product_id)
@@ -81,7 +81,7 @@ def generate(product_id, aoi, track, acqs, slcs, acq_lists, runconfig_topsapps, 
     write_ifgs(wb, ifg_dct)
     #save output 
     wb.save(output_path)
-    gen_product_met(aoi, product_id, track)
+    gen_product_met(request, product_id, track)
 
 def write_current_status(wb, acq_list_dict, runconfig_topsapp_dct, ifg_dct, slc_dct, acq_map_dct, aoi_track_dct):
     '''generate the sheet for enumerated products'''
@@ -101,8 +101,9 @@ def write_current_status(wb, acq_list_dict, runconfig_topsapp_dct, ifg_dct, slc_
         missing_slcs = []
         missing_acqs = []
         acq_list_slcs = acq_list.get('_source').get('metadata').get('master_scenes') + acq_list.get('_source').get('metadata').get('slave_scenes')
-        for slc_id in acq_list_slcs:
-            if not slc_dct.get(slc_id+'-local', False):
+        normalize_slc = lambda x : x if '-local' in x else x+'-local'
+        for slc_id in acq_list_slcs: 
+            if not slc_dct.get(normalize_slc(slc_id), False):
                 missing_slcs.append(slc_id)
                 missing_acq = acq_map_dct.get(slc_id, False)
                 if missing_acq:
@@ -124,13 +125,13 @@ def write_missing_slcs(wb, slc_dct, acq_lists):
     ws = wb.create_sheet('Missing SLCs')
     ws.append(['slc_id'])
     missing = []
+    normalize_slc = lambda x : x if '-local' in x else x+'-local'
     for acq_list in acq_lists:
         master_scenes = acq_list.get('_source', {}).get('metadata', {}).get('master_scenes', [])
         slave_scenes = acq_list.get('_source', {}).get('metadata', {}).get('slave_scenes', [])
         all_scenes = master_scenes + slave_scenes
         for slc_id in all_scenes:
-            ## slc-local_id is normal slc_id + '-local' suffix
-            if slc_dct.get(slc_id+'-local', False) is False:
+            if slc_dct.get(normalize_slc(slc_id), False) is False:
                 missing.append(slc_id)
     missing = list(set(missing))
     for slc_id in missing:
@@ -181,11 +182,12 @@ def write_hysds_enumerated_date_pairs(wb, acq_list_dct):
         date_pair = gen_date_pair(acq_list_dct.get(id_hash))
         ws.append([date_pair])
 
-def gen_product_met(aoi, product_id, track):
+def gen_product_met(request, product_id, track):
     '''generates the appropriate product json files in the product directory'''
-    location = aoi.get('_source', {}).get('location', False)
-    starttime = aoi.get('_source', {}).get('starttime', False)
-    endtime = aoi.get('_source', {}).get('endtime', False)
+    enumeration_list = request.get('_source', {}).get('enumeration_list')
+    starttime = min(map(lambda enum: enum.get('reference_start_time'), enumeration_list))
+    endtime = max(map(lambda enum: enum.get('reference_end_time'), enumeration_list))
+    location = request.get('_source', {}).get('polygon_geojson')
     ds_json = {'label': product_id, 'version': VERSION, 'starttime':starttime, 'endtime':endtime, 'location':location}
     outpath = os.path.join(product_id, '{}.dataset.json'.format(product_id))
     with open(outpath, 'w') as outf:
@@ -338,9 +340,9 @@ def get_endtime(obj):
 def get_hash(es_obj):
     '''retrieves the full_id_hash. if it doesn't exists, it
         attempts to generate one'''
-    full_id_hash = es_obj.get('_source', {}).get('metadata', {}).get('full_id_hash', False)
-    if full_id_hash:
-        return full_id_hash
+    # full_id_hash = es_obj.get('_source', {}).get('metadata', {}).get('full_id_hash', False)
+    # if full_id_hash:
+    #     return full_id_hash
     return gen_hash(es_obj)
 
 def gen_hash(es_obj):
@@ -350,9 +352,12 @@ def gen_hash(es_obj):
     slave_slcs = met.get('slave_scenes', met.get('secondary_scenes', False))
     master_ids_str = ""
     slave_ids_str = ""
+
+    remove_local = lambda x : x.replace('-local', '')
     for slc in sorted(master_slcs):
         if isinstance(slc, tuple) or isinstance(slc, list):
             slc = slc[0]
+        slc = remove_local(slc)
         if master_ids_str == "":
             master_ids_str = slc
         else:
@@ -360,6 +365,7 @@ def gen_hash(es_obj):
     for slc in sorted(slave_slcs):
         if isinstance(slc, tuple) or isinstance(slc, list):
             slc = slc[0]
+        slc = remove_local(slc)
         if slave_ids_str == "":
             slave_ids_str = slc
         else:
@@ -367,14 +373,15 @@ def gen_hash(es_obj):
     id_hash = hashlib.md5(json.dumps([master_ids_str, slave_ids_str]).encode("utf8")).hexdigest()
     return id_hash
 
-def get_objects(object_type, aoi, track_number=False):
+def get_objects(object_type, request, track_number=False):
     '''returns all objects of the object type ['ifg, acq-list, 'ifg-blacklist'] that intersect both
-    temporally and spatially with the aoi'''
+    temporally and spatially with the aoi specified in the request'''
     #determine index
     idx = IDX_DCT.get(object_type)
-    starttime = aoi.get('_source', {}).get('starttime')
-    endtime = aoi.get('_source', {}).get('endtime')
-    location = aoi.get('_source', {}).get('location')
+    enumeration_list = request.get('_source', {}).get('enumeration_list')
+    starttime = min(map(lambda enum: enum.get('reference_start_time'), enumeration_list))
+    endtime = max(map(lambda enum: enum.get('reference_end_time'), enumeration_list))
+    location = request.get('_source', {}).get('polygon_geojson')
     grq_ip = app.conf['GRQ_ES_URL'].replace(':9200', '').replace('http://', 'https://')
     grq_url = '{0}/es/{1}/_search'.format(grq_ip, idx)
     track_field = 'track_number'
@@ -390,8 +397,9 @@ def get_objects(object_type, aoi, track_number=False):
                      "filter":{"bool":{"must":[{"range":{"endtime":{"gte":starttime}}},
                      {"range":{"starttime":{"lte":endtime}}}]}}}},
                      "from":0,"size":1000}
+    ## TODO: this will need updating for aoi-track
     if object_type == 'audit_trail' or object_type == 'aoi_track':
-        grq_query = {"query":{"bool":{"must":[{"term":{"metadata.aoi.raw": aoi.get('_source').get('id')}},{"term":{"metadata.track_number": track_number}}]}},"from":0,"size":1000}
+        grq_query = {"query":{"bool":{"must":[{"term":{"metadata.tags.raw": request.get('_source').get('id')}},{"term":{"metadata.track_number": track_number}}]}},"from":0,"size":1000}
     results = query_es(grq_url, grq_query)
     return results
 
@@ -411,25 +419,20 @@ def query_es(grq_url, es_query):
     else:
         from_position = 0
         es_query['from'] = from_position
-    #run the query and iterate until all the results have been returned
-    #print('querying: {}\n{}'.format(grq_url, json.dumps(es_query)))
     response = requests.post(grq_url, data=json.dumps(es_query), verify=False)
-    #print('status code: {}'.format(response.status_code))
-    #print('response text: {}'.format(response.text))
     response.raise_for_status()
     results = json.loads(response.text, encoding='ascii')
     results_list = results.get('hits', {}).get('hits', [])
     total_count = results.get('hits', {}).get('total', 0)
     for i in range(iterator_size, total_count, iterator_size):
         es_query['from'] = i
-        #print('querying: {}\n{}'.format(grq_url, json.dumps(es_query)))
         response = requests.post(grq_url, data=json.dumps(es_query), timeout=60, verify=False)
         response.raise_for_status()
         results = json.loads(response.text, encoding='ascii')
         results_list.extend(results.get('hits', {}).get('hits', []))
     return results_list
 
-def get_request_id(request_id, request_index):
+def get_request(request_id, request_index):
     '''
     retrieves request-submit from ES
     '''
@@ -439,18 +442,6 @@ def get_request_id(request_id, request_index):
     result = query_es(grq_url, es_query)
     if len(result) < 1:
         raise Exception('Found no results for Request-Submit: {}'.format(request_id))
-    return result[0]
-
-def get_aoi(aoi_id, aoi_index):
-    '''
-    retrieves the AOI from ES
-    '''
-    grq_ip = app.conf['GRQ_ES_URL'].replace(':9200', '').replace('http://', 'https://')
-    grq_url = '{0}/es/{1}/_search'.format(grq_ip, aoi_index)
-    es_query = {"query":{"bool":{"must":[{"term":{"id.raw":aoi_id}}]}}}
-    result = query_es(grq_url, es_query)
-    if len(result) < 1:
-        raise Exception('Found no results for AOI: {}'.format(aoi_id))
     return result[0]
 
 def load_context():
@@ -465,12 +456,5 @@ def load_context():
 
 
 if __name__ == '__main__':
-    # main()
-    conext = load_context()
-    request_id = ctx.get('request_id', False)
-    request_index = ctx.get('request_index', False)
-    if request_id is False or request_index is False:
-        raise Exception('invalid inputs of request_id: {}, request_index: {}'.format(request_id, request_index))
-    request = get_request(request_id, request_index)
-    print(request)
+    main()
 
