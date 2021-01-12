@@ -20,7 +20,7 @@ from hysds.celery import app
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 VERSION = 'v2.0'
-PRODUCT_NAME = 'AOI_Ops_Report-{}-TN{}-{}-{}'
+PRODUCT_NAME = 'Request_Ops_Report-{}-TN{}-{}-{}'
 IDX_DCT = {'audit_trail': 'grq_*_runconfig-acqlist-audit_trail', 'ifg':'grq_*_s1-gunw',
            'acq-list':'grq_*_runconfig-acq-list', 'runconfig-topsapp': 'grq_*_runconfig-topsapp',
            'ifg-blacklist':'grq_*_blacklist', 'slc': 'grq_*_s1-iw_slc-local', 
@@ -398,8 +398,13 @@ def get_objects(object_type, request, track_number=False):
                      {"range":{"starttime":{"lte":endtime}}}]}}}},
                      "from":0,"size":1000}
     ## TODO: this will need updating for aoi-track
-    if object_type == 'audit_trail' or object_type == 'aoi_track':
+    if object_type == 'audit_trail':
         grq_query = {"query":{"bool":{"must":[{"term":{"metadata.tags.raw": request.get('_source').get('id')}},{"term":{"metadata.track_number": track_number}}]}},"from":0,"size":1000}
+
+	if object_type == 'aoi_track':
+        grq_query = {"query":{"bool":{"must":[{"term":{"metadata.tags.raw": request.get('_source').get('id')}},{"term":{"metadata.track_number": track_number}}]}},"from":0,"size":1000}
+        
+
     results = query_es(grq_url, grq_query)
     return results
 
