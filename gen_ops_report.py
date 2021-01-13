@@ -20,7 +20,7 @@ from hysds.celery import app
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 VERSION = 'v2.0'
-PRODUCT_NAME = 'Request_Ops_Report-{}-TN{}-{}-{}'
+PRODUCT_NAME = 'AOI_Ops_Report-{}-TN{}-{}-{}'
 IDX_DCT = {'audit_trail': 'grq_*_runconfig-acqlist-audit_trail', 'ifg':'grq_*_s1-gunw',
            'acq-list':'grq_*_runconfig-acq-list', 'runconfig-topsapp': 'grq_*_runconfig-topsapp',
            'ifg-blacklist':'grq_*_blacklist', 'slc': 'grq_*_s1-iw_slc-local', 
