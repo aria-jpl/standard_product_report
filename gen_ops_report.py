@@ -402,7 +402,7 @@ def get_objects(object_type, request, track_number=False):
         grq_query = {"query":{"bool":{"must":[{"term":{"metadata.tags.raw": request.get('_source').get('id')}},{"term":{"metadata.track_number": track_number}}]}},"from":0,"size":1000}
 
     if object_type == 'aoi_track':
-        grq_query = {"query":{"bool":{"must":[{"term":{"metadata.tags.raw": request.get('_source').get('id')}},{"term":{"metadata.track_number": track_number}}]}},"from":0,"size":1000}
+        grq_query = {"query":{"bool":{"must":[{"term":{"metadata.track_number": track_number}}]}},"from":0,"size":1000}
         
 
     results = query_es(grq_url, grq_query)
